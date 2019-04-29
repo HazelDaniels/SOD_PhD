@@ -1,0 +1,99 @@
+---
+title: "Eradication Effectiveness"
+author: "Hazel Daniels"
+date: "April 24, 2019"
+output: html_document
+---
+
+# Reading in file 
+```{r}
+library(readxl)
+AllSites <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.03_EradicationEffectiveness/R Files/BasicData.xlsx")
+head(AllSites)
+AllSites$VegBin <- as.numeric(as.character(AllSites$VegBin))
+AllSites$SoilBin <- as.numeric(as.character(AllSites$SoilBin))
+AllSites$TrtBin <- as.numeric(as.character(AllSites$TrtBin))
+head(AllSites)
+```
+
+# Logistic Regression for predicting Positive Vegetation, Generally
+```{r}
+#Is positive veg  predicted by lineage alone?
+LRVeg_Lin <- glm(VegBin~Lineage, family=binomial, data=AllSites)
+summary(LRVeg_Lin)
+
+#Is Positive veg predicted by treatment alone?
+LRVeg_Trt <- glm(VegBin~TrtBin, family=binomial, data=AllSites)
+summary(LRVeg_Trt)
+
+#Is positive Veg predicted by positive soil alone?
+LRVeg_Soil <- glm(VegBin~SoilBin, family=binomial, data=AllSites)
+summary(LRVeg_Soil)
+
+#Is positive Veg predicted by lineage and treatment?
+LRVeg_LinTrt <- glm(VegBin~Lineage + TrtBin, family=binomial, data=AllSites)
+summary(LRVeg_LinTrt)
+
+#Is positive veg predicted by lineage and positive soil?
+LRVeg_LinSoil <- glm(VegBin~Lineage + SoilBin, family=binomial, data=AllSites)
+summary(LRVeg_LinSoil)
+
+#Is positive veg predicted by treatment and positive soil?
+LRVeg_TrtSoil <- glm(VegBin~TrtBin + SoilBin, family=binomial, data=AllSites)
+summary(LRVeg_TrtSoil)
+
+#Is positive veg predicted by lineage, treatment, and positive soil?
+LRVeg_LTS <- glm(VegBin~Lineage + TrtBin + SoilBin, family=binomial, data=AllSites)
+summary(LRVeg_LTS)
+```
+
+#Logistic Regression for predicting Positive Soil, Generally
+```{r}
+#Is positive soil  predicted by lineage alone?
+LRSoil_Lin <- glm(SoilBin~Lineage, family=binomial, data=AllSites)
+summary(LRSoil_Lin)
+
+#Is Positive soil predicted by treatment alone?
+LRSoil_Trt <- glm(SoilBin~TrtBin, family=binomial, data=AllSites)
+summary(LRSoil_Trt)
+
+#Is positive soil predicted by positive veg alone?
+LRSoil_Veg <- glm(SoilBin~VegBin, family=binomial, data=AllSites)
+summary(LRSoil_Veg)
+
+#Is positive soil predicted by lineage and treatment?
+LRSoil_LinTrt <- glm(SoilBin~Lineage + TrtBin, family=binomial, data=AllSites)
+summary(LRSoil_LinTrt)
+
+#Is positive soil predicted by lineage and positive veg?
+LRSoil_LinVeg <- glm(SoilBin~Lineage + VegBin, family=binomial, data=AllSites)
+summary(LRSoil_LinVeg)
+
+#Is positive soil predicted by treatment and positive veg?
+LRSoil_TrtVeg <- glm(SoilBin~TrtBin + VegBin, family=binomial, data=AllSites)
+summary(LRSoil_TrtVeg)
+
+#Is positive soil predicted by lineage, treatment, and positive veg?
+LRSoil_LTV <- glm(SoilBin~Lineage + TrtBin + VegBin, family=binomial, data=AllSites)
+summary(LRSoil_LTV)
+```
+
+#Logistic Regression for predicting Positive Veg, NA1 only
+```{r}
+#Subsetting data
+NA1Sites <- subset(AllSites, AllSites$Lineage == "NA1")
+
+#Is Positive veg predicted by treatment alone?
+NA1_Trt <- glm(VegBin~TrtBin, family=binomial, data=NA1Sites)
+summary(NA1_Trt)
+```
+
+#Logistic Regression for predicting Positive Veg, EU1 only
+```{r}
+#Subsetting data
+EU1Sites <- subset(AllSites, AllSites$Lineage == "EU1")
+
+#Is Positive veg predicted by treatment alone?
+EU1_Trt <- glm(VegBin~TrtBin, family=binomial, data=EU1Sites)
+summary(EU1_Trt)
+```
