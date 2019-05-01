@@ -16,84 +16,183 @@ AllSites$TrtBin <- as.numeric(as.character(AllSites$TrtBin))
 head(AllSites)
 ```
 
-# Logistic Regression for predicting Positive Vegetation, Generally
+# Vegetation
+## Fitting a model for veg
 ```{r}
-#Is positive veg  predicted by lineage alone?
-LRVeg_Lin <- glm(VegBin~Lineage, family=binomial, data=AllSites)
-summary(LRVeg_Lin)
+veg_null = glm(VegBin~1, family = binomial, data=AllSites)
+veg_full = glm(VegBin~Lineage * TrtBin * SoilBin, family=binomial, data=AllSites)
+step(veg_null, scope = list(upper=veg_full), direction="both", test="Chisq", data=AllSItess)
+#VegBin~SoilBin + TrtBin + SoilBin:TrtBin
 
-#Is Positive veg predicted by treatment alone?
-LRVeg_Trt <- glm(VegBin~TrtBin, family=binomial, data=AllSites)
-summary(LRVeg_Trt)
-
-#Is positive Veg predicted by positive soil alone?
-LRVeg_Soil <- glm(VegBin~SoilBin, family=binomial, data=AllSites)
-summary(LRVeg_Soil)
-
-#Is positive Veg predicted by lineage and treatment?
-LRVeg_LinTrt <- glm(VegBin~Lineage + TrtBin, family=binomial, data=AllSites)
-summary(LRVeg_LinTrt)
-
-#Is positive veg predicted by lineage and positive soil?
-LRVeg_LinSoil <- glm(VegBin~Lineage + SoilBin, family=binomial, data=AllSites)
-summary(LRVeg_LinSoil)
-
-#Is positive veg predicted by treatment and positive soil?
-LRVeg_TrtSoil <- glm(VegBin~TrtBin + SoilBin, family=binomial, data=AllSites)
-summary(LRVeg_TrtSoil)
-
-#Is positive veg predicted by lineage, treatment, and positive soil?
-LRVeg_LTS <- glm(VegBin~Lineage + TrtBin + SoilBin, family=binomial, data=AllSites)
-summary(LRVeg_LTS)
+library(rJava)
+library(glmulti)
+model_full2 <- glmulti(VegBin ~ Lineage * TrtBin * SoilBin, data=AllSites, crit=bic, method = "g")
+#VegBin~1+TrtBin+SoilBin:TrtBin
+model_full3 <- glmulti(VegBin ~ Lineage * TrtBin * SoilBin, data=AllSites, crit=aic, method = "g")
+#VegBin~1+TrtBin+SoilBin:TrtBin
 ```
 
-#Logistic Regression for predicting Positive Soil, Generally
-```{r}
-#Is positive soil  predicted by lineage alone?
-LRSoil_Lin <- glm(SoilBin~Lineage, family=binomial, data=AllSites)
-summary(LRSoil_Lin)
-
-#Is Positive soil predicted by treatment alone?
-LRSoil_Trt <- glm(SoilBin~TrtBin, family=binomial, data=AllSites)
-summary(LRSoil_Trt)
-
-#Is positive soil predicted by positive veg alone?
-LRSoil_Veg <- glm(SoilBin~VegBin, family=binomial, data=AllSites)
-summary(LRSoil_Veg)
-
-#Is positive soil predicted by lineage and treatment?
-LRSoil_LinTrt <- glm(SoilBin~Lineage + TrtBin, family=binomial, data=AllSites)
-summary(LRSoil_LinTrt)
-
-#Is positive soil predicted by lineage and positive veg?
-LRSoil_LinVeg <- glm(SoilBin~Lineage + VegBin, family=binomial, data=AllSites)
-summary(LRSoil_LinVeg)
-
-#Is positive soil predicted by treatment and positive veg?
-LRSoil_TrtVeg <- glm(SoilBin~TrtBin + VegBin, family=binomial, data=AllSites)
-summary(LRSoil_TrtVeg)
-
-#Is positive soil predicted by lineage, treatment, and positive veg?
-LRSoil_LTV <- glm(SoilBin~Lineage + TrtBin + VegBin, family=binomial, data=AllSites)
-summary(LRSoil_LTV)
-```
-
-#Logistic Regression for predicting Positive Veg, NA1 only
+## Fitting a model for NA1 veg only
 ```{r}
 #Subsetting data
 NA1Sites <- subset(AllSites, AllSites$Lineage == "NA1")
 
-#Is Positive veg predicted by treatment alone?
-NA1_Trt <- glm(VegBin~TrtBin, family=binomial, data=NA1Sites)
-summary(NA1_Trt)
+NAV_null = glm(VegBin~1, family = binomial, data=NA1Sites)
+NAV_full = glm(VegBin~TrtBin * SoilBin, family=binomial, data=NA1Sites)
+step(NAV_null, scope = list(upper=NAV_full), direction="both", test="Chisq", data=NA1Sites)
+#VegBin~SoilBin + TrtBin
+
+NAV_full2 <- glmulti(VegBin ~ TrtBin * SoilBin, data=NA1Sites, crit=bic, method = "g")
+#VegBin~1+TrtBin+SoilBin:TrtBin
+NAV_full3 <- glmulti(VegBin ~ TrtBin * SoilBin, data=NA1Sites, crit=aic, method = "g")
+#VegBin~1+TrtBin+SoilBin:TrtBin
 ```
 
-#Logistic Regression for predicting Positive Veg, EU1 only
+## Fitting a model for EU1 veg only
 ```{r}
 #Subsetting data
 EU1Sites <- subset(AllSites, AllSites$Lineage == "EU1")
 
-#Is Positive veg predicted by treatment alone?
-EU1_Trt <- glm(VegBin~TrtBin, family=binomial, data=EU1Sites)
-summary(EU1_Trt)
+EUV_null = glm(VegBin~1, family = binomial, data=EU1Sites)
+EUV_full = glm(VegBin~TrtBin * SoilBin, family=binomial, data=EU1Sites)
+step(EUV_null, scope = list(upper=EUV_full), direction="both", test="Chisq", data=EU1Sites)
+#VegBin~1
+
+EUV_full2 <- glmulti(VegBin ~ TrtBin * SoilBin, data=EU1Sites, crit=bic, method = "g")
+#VegBin~1
+EUV_full3 <- glmulti(VegBin ~ TrtBin * SoilBin, data=EU1Sites, crit=aic, method = "g")
+#VegBin~1
 ```
+
+## Logistic Regression for predicting Positive Veg, Generally
+```{r}
+#Is positive veg predicted by treatment and positive soil &/or interaction? (model from stepwise fit)
+LRVeg_TS1 <- glm(VegBin~SoilBin + TrtBin + SoilBin:TrtBin, family=binomial, data=AllSites)
+summary(LRVeg_TS1)
+
+#Is positive veg predicted by treatment and positive soil &/or interaction? (model from glmulti fit)
+LRVeg_TS2 <- glm(VegBin~1+TrtBin+SoilBin:TrtBin, family=binomial, data=AllSites)
+summary(LRVeg_TS2)
+```
+
+#Interpretation
+Intercept = 1 (as in, yes there's pos veg on plot), it looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). It is plausible that the data eminate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
+> 1-pchisq(79.728-60.026, 58-55)
+[1] 0.0001956716
+
+## Logistic regession for predicting positive veg, NA1 only
+```{r}
+#Is NA1 Positive veg predicted by treatment and positive soil? (model from stepwise fit)
+NA1_TS1 <- glm(VegBin~SoilBin + TrtBin, family=binomial, data=NA1Sites)
+summary(NA1_TS1)
+
+#Is NA1 Positive veg predicted by treatment and positive soil &/or interaction? (model from glmulti fit)
+NA1_TS2 <- glm(VegBin~1+TrtBin+SoilBin:TrtBin, family=binomial, data=NA1Sites)
+summary(NA1_TS2)
+```
+
+#Interpretation
+Intercept = 1 (as in, yes there's pos veg on plot), it looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). It is plausible that the data eminate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
+> 1-pchisq(56.814-41.192, 40-38)
+[1] 0.0004052526
+
+
+## Logistic Regression for predicting positive Veg, EU1 only
+```{r}
+#Is EU1 Positive veg predicted by any factor?
+EU1_TS1 <- glm(VegBin~SoilBin + TrtBin, family=binomial, data=EU1Sites)
+summary(EU1_TS1)
+
+summary(EUV_null)
+```
+
+#Interpretation
+There are no factors with any predictive quality for EU1 positive veg. We accept the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
+> 1-pchisq(19.069-18.421, 17-15)
+[1] 0.7232502
+
+
+# Soil
+## Fitting a model for soil
+```{r}
+soil_null = glm(SoilBin~1, family = binomial, data=AllSites)
+soil_full = glm(SoilBin~Lineage * TrtBin * VegBin, family=binomial, data=AllSites)
+step(soil_null, scope = list(upper=soil_full), direction="both", test="Chisq", data=AllSItess)
+#SoilBin~VegBin
+
+soil_full2 <- glmulti(SoilBin ~ Lineage * TrtBin * VegBin, data=AllSites, crit=bic, method = "g")
+#SoilBin~1+VegBin
+soil_full3 <- glmulti(SoilBin ~ Lineage * TrtBin * VegBin, data=AllSites, crit=aic, method = "g")
+#SoilBin~1+VegBin
+```
+
+## Fitting a model for NA1 soil only
+```{r}
+NAS_null = glm(SoilBin~1, family = binomial, data=NA1Sites)
+NAS_full = glm(SoilBin~TrtBin * VegBin, family=binomial, data=NA1Sites)
+step(NAS_null, scope = list(upper=NAS_full), direction="both", test="Chisq", data=NA1Sites)
+#SoilBin~VegBin
+
+NAS_full2 <- glmulti(SoilBin ~ TrtBin * VegBin, data=NA1Sites, crit=bic, method = "g")
+#SoilBin~1+VegBin
+NAS_full3 <- glmulti(SoilBin ~ TrtBin * VegBin, data=NA1Sites, crit=aic, method = "g")
+#SoilBin~1+VegBin
+```
+
+## Fitting a model for EU1 soil only
+```{r}
+EUS_null = glm(SoilBin~1, family = binomial, data=EU1Sites)
+EUS_full = glm(SoilBin~TrtBin * VegBin, family=binomial, data=EU1Sites)
+step(EUS_null, scope = list(upper=EUS_full), direction="both", test="Chisq", data=EU1Sites)
+#SoilBin ~ 1
+
+EUS_full2 <- glmulti(SoilBin ~ TrtBin * VegBin, data=EU1Sites, crit=bic, method = "g")
+#SoilBin ~ 1
+EUS_full3 <- glmulti(SoilBin ~ TrtBin * VegBin, data=EU1Sites, crit=aic, method = "g")
+#SoilBin ~ 1
+```
+
+## Logistic Regression for predicting Positive Soil, Generally
+```{r}
+#Is positive soil predicted by positive veg alone? (model from stepwise fit)
+LRSoil_Veg1 <- glm(SoilBin~VegBin, family=binomial, data=AllSites)
+summary(LRSoil_Veg1)
+
+#Is positive soil predicted by positive veg alone? (model from glmulti fit)
+LRSoil_Veg2 <- glm(SoilBin~1+VegBin, family=binomial, data=AllSites)
+summary(LRSoil_Veg2)
+```
+
+#Interpretation
+Intercept = 1 (as in, yes there's pos soil on plot), it looks like there's a significant predictive quality for whether a site has positive veg as to whether there is positive soil. In other words, a site with positive veg is more likely to have positive soil than a site without positive veg. It is plausible that the data eminate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
+> 1-pchisq(64.656-54.494, 58-57)
+[1] 0.00143365
+
+## Logistic regression for predicting positive soil, NA1 only
+```{r}
+#Is NA1 Positive soil predicted by positive veg alone? (model from stepwise fit)
+NA1_v1 <- glm(SoilBin~VegBin, family=binomial, data=NA1Sites)
+summary(NA1_v1)
+
+#Is NA1 Positive soil predicted by positive veg alone? (model from glmulti fit)
+NA1_v2 <- glm(SoilBin~1+VegBin, family=binomial, data=NA1Sites)
+summary(NA1_v2)
+```
+
+#Interpretation
+There are no factors with a predictive quality, but at the same time it is plausible that the data eminate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
+> 1-pchisq(37.478-26.734, 40-39)
+[1] 0.00104618
+
+## Logistic regression for predicting positive soil, EU1 only
+```{r}
+EU1_v1 <- glm(SoilBin~VegBin, family=binomial, data=EU1Sites)
+summary(EU1_v1)
+
+summary(EUS_null)
+```
+
+#Interpretation
+There are no factors with any predictive quality for EU1 positive soil. We accept the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
+> 1-pchisq(24.057-23.620, 17-16)
+[1] 0.508574
