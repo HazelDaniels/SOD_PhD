@@ -2,7 +2,7 @@
 A repo for code &amp; other relevant files pertaining to Hazel Daniels' PhD at Oregon State University
 
 1. Why am I doing this?
-    - This project (C2) is one portion of my dissertation. It focuses on the genetic relatedness of geographically nearby infections of the  Sudden Oak Death (SOD) pathogen *Phytophthora ramorum*.
+    - This project (C2) is one portion of my dissertation. It focuses on the genetic relatedness of geographically neighboring infections of the  Sudden Oak Death (SOD) pathogen *Phytophthora ramorum*.
 
 2. What are my goals?
     - The goal of C2 is to determine through whole genome sequencing (performed by CGRB):
