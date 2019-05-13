@@ -7,6 +7,8 @@
     - BWA
 4. Timeline?
     - The exercise should be started in the next week (before May 20), completion will happen in the next month or so.
+    - In addition, I will give a simple synthesis of what mapping against a genome is at the May 20 meeting.
+
 
 # SOD_PhD
 A repo for code &amp; other relevant files pertaining to Hazel Daniels' PhD at Oregon State University
