@@ -1,3 +1,13 @@
+# SOD_PhD Mini task
+1. Why?
+    - This exercise will help me learn how to call variants based on a reference genome.
+2. Goals?
+    - To learn how to map reads, to genotype samples of interest, and to learn the tools necessary for this exercise.
+3. Tools?
+    - BWA
+4. Timeline?
+    - The exercise should be started in the next week (before May 20), completion will happen in the next month or so.
+
 # SOD_PhD
 A repo for code &amp; other relevant files pertaining to Hazel Daniels' PhD at Oregon State University
 
