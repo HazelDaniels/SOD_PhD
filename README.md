@@ -2,12 +2,16 @@
 1. Why?
     - This exercise will help me learn how to call variants based on a reference genome.
 2. Goals?
-    - To learn how to map reads, to genotype samples of interest, and to learn the tools necessary for this exercise.
+    - To learn how to map reads
+    - To genotype samples of interest
+    - To learn the tools necessary for this exercise
+    - To differentiate between genome alignment (BWA) and splicing-aware aligner (STAR, e.g. Tophat2)
 3. Tools?
     - BWA
 4. Timeline?
-    - The exercise should be started in the next week (before May 20), completion will happen in the next month or so.
-    - In addition, I will give a simple synthesis of what mapping against a genome is at the May 20 meeting.
+    - The exercise should be started in the next week (before May 20)
+    - Completion will happen in the next month or so.
+    - In addition, I will give a simple synthesis of what mapping against a genome (and the importance of discovering variance) is at the May 20 meeting.
 
 
 # SOD_PhD
