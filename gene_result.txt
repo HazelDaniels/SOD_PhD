@@ -1,0 +1,11 @@
+tax_id	Org_name	GeneID	CurrentID	Status	Symbol	Aliases	description	other_designations	map_location	chromosome	genomic_nucleotide_accession.version	start_position_on_the_genomic_accession	end_position_on_the_genomic_accession	orientation	exon_count	OMIM	
+164328	Phytophthora ramorum	5065923	0	live	atp1	PhraoMp21	ATP synthase F1 subunit alpha			MT	NC_009384.1	21794	23323	plus	0		
+164328	Phytophthora ramorum	5065985	0	live	cox1	PhraoMp06	cytochrome c oxidase subunit 1			MT	NC_009384.1	8053	9531	plus	0		
+164328	Phytophthora ramorum	5065924	0	live	cox3	PhraoMp13	cytochrome c oxidase subunit 3			MT	NC_009384.1	14264	15178	minus	0		
+164328	Phytophthora ramorum	5065920	0	live	nad1	PhraoMp26	NADH dehydrogenase subunit 1			MT	NC_009384.1	27590	28570	minus	0		
+164328	Phytophthora ramorum	5065928	0	live	nad5	PhraoMp22	NADH dehydrogenase subunit 5			MT	NC_009384.1	23475	25469	plus	0		
+164328	Phytophthora ramorum	5065929	0	live	rps10	PhraoMp16	ribosomal protein S10			MT	NC_009384.1	16367	16693	minus	0		
+164328	Phytophthora ramorum	5065926	0	live	rps3	PhraoMp34	ribosomal protein S3			MT	NC_009384.1	33960	34775	plus	0		
+164328	Phytophthora ramorum	5065937	0	live	secY	PhraoMp28	Sec-independent transporter protein			MT	NC_009384.1	30910	31653	plus	0		
+164328	Phytophthora ramorum	5065980	0	live	ymf100	PhraoMp43	orf100			MT	NC_009384.1	38969	39277	plus	0		
+164328	Phytophthora ramorum	5065961	0	live	ymf101	PhraoMp29	orf64			MT	NC_009384.1	31655	31852	minus	0		
