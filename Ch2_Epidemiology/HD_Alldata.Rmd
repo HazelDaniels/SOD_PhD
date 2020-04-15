@@ -1,0 +1,137 @@
+---
+title: "Spatial analysis"
+author: "Javier F. Tabima, edited by Hazel Daniels"
+date: "10/22/2018"
+output: html_document
+---
+
+# Reading in file 
+```{r}
+library(readxl)
+All.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.06_SpatialAnalysis/SOD_POS_2001-2018.xlsx")
+All.data
+colnames(All.data)[1] <- "SAMPLE"
+```
+
+# EU1 subdata
+
+## Reading in file
+```{r}
+EU1.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.06_SpatialAnalysis/SOD_POS_2001-2018.xlsx")
+EU1.data <- EU1.data[unlist(All.data$LINEAGE) %in% "EU1",]
+EU1.data
+colnames(EU1.data)[1] <- "SAMPLE"
+```
+
+## Calculating distances
+```{r}
+library(geosphere)
+EU1_Hav.dist <- list()
+for (i in 1:nrow(EU1.data)){
+  EU1_Hav.dist.sub <- vector(length = nrow(EU1.data))
+  for (j in 1:nrow(EU1.data)){
+    EU1_Hav.dist.sub[j] <- distm(EU1.data[i, c(3,2)], EU1.data[j, c(3,2)], fun = distHaversine) 
+  }
+  EU1_Hav.dist[[i]] <-  EU1_Hav.dist.sub
+}
+
+pw.dist.eu1 <- as.matrix(do.call(cbind,EU1_Hav.dist))
+
+rownames(pw.dist.eu1) <- EU1.data$`SAMPLE`
+colnames(pw.dist.eu1) <- EU1.data$`SAMPLE`
+
+EU1.dataframe <- as.data.frame(pw.dist.eu1)
+
+#Convert from matrix to one-sided list which can then be filtered by distance
+library(reshape)
+EU1.df <- as.matrix(pw.dist.eu1)
+EU1.df2 <- melt(EU1.df)[melt(upper.tri(EU1.df))$value,]
+names(EU1.df2) <- c("Site1", "Site2", "Distance")
+
+#library(dplyr)
+#EU1.400 <-filter_all(EU1.df2, any_vars(. > 400))
+
+quantile(pw.dist.eu1)
+
+hist(pw.dist.eu1, breaks = 10000, xlim = c(0,1000))
+
+apply(pw.dist.eu1, 1, function (x) names(x[x < 10 & x > 0]))
+```
+
+## Using clustering
+```{r}
+library(mclust)
+fit <- Mclust(pw.dist.eu1) # use 1 for BIC model
+plot(fit) # plot results
+summary(fit) # display the best model 
+
+fit <- kmeans(pw.dist.eu1, 2)
+library(cluster)
+clusplot(pw.dist.eu1, fit$cluster, color=TRUE, shade=TRUE,
+   labels=2, lines=0)
+
+cluster <- data.frame('SAMPLE'=names(fit$cluster), CLUSTER=fit$cluster)
+EU1.cluster <- merge(EU1.data, cluster, by = "SAMPLE")
+
+library(ggplot2)
+ggplot(EU1.cluster, aes(x=LAT, y=LONG, colour=as.factor(CLUSTER))) + geom_point() + stat_ellipse()
+```
+
+
+# NA1 data
+
+## Reading in file
+```{r}
+library(readxl)
+NA1.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.06_SpatialAnalysis/SOD_POS_2001-2018.xlsx")
+NA1.data <- NA1.data[unlist(NA1.data$LINEAGE) %in% "NA1",]
+NA1.data
+colnames(NA1.data)[1] <- "SAMPLE"
+
+# 2001 - 2004 data
+library(dplyr)
+#NA1.4.data <- select(filter(NA1.data, YEAR == c(2001, 2002, 2003, 2004)))
+NA1.4.data <- subset(NA1.data, YEAR < 2005, select = c("SAMPLE", "LAT", "LONG", "YEAR", "LINEAGE"))
+```
+
+## Calculating distances 
+```{r}
+library(geosphere)
+NA1_Hav.dist <- list()
+for (i in 1:nrow(NA1.4.data)){
+  NA1_Hav.dist.sub <- vector(length = nrow(NA1.4.data))
+  for (j in 1:nrow(NA1.4.data)){
+    NA1_Hav.dist.sub[j] <- distm(NA1.4.data[i, c(3,2)], NA1.4.data[j, c(3,2)], fun = distHaversine) 
+  }
+  NA1_Hav.dist[[i]] <-  NA1_Hav.dist.sub
+}
+
+pw.dist.na1 <- as.matrix(do.call(cbind,NA1_Hav.dist))
+
+rownames(pw.dist.na1) <- NA1.4.data$`SAMPLE`
+colnames(pw.dist.na1) <- NA1.4.data$`SAMPLE`
+
+quantile(pw.dist.na1)
+
+hist(pw.dist.na1, breaks = 10000, xlim = c(0,1000))
+
+apply(pw.dist.na1, 1, function (x) names(x[x < 10 & x > 0]))
+```
+
+## Using clustering
+```{r}
+library(mclust)
+fit <- Mclust(pw.dist.na1)
+summary(fit) # display the best model 
+
+fit <- kmeans(pw.dist.na1, 9)
+library(cluster)
+clusplot(pw.dist.na1, fit$cluster, color=TRUE, shade=TRUE,
+   labels=2, lines=0)
+
+cluster <- data.frame('SAMPLE'=names(fit$cluster), CLUSTER=fit$cluster)
+NA1.4.cluster <- merge(NA1.4.data, cluster, by = "SAMPLE")
+
+library(ggplot2)
+ggplot(NA1.4.cluster, aes(x=LAT, y=LONG, colour=as.factor(CLUSTER))) + geom_point() + stat_ellipse()
+```
