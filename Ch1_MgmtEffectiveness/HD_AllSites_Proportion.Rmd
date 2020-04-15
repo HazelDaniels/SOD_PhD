@@ -1,0 +1,182 @@
+---
+title: "Eradication Effectiveness Proportions"
+author: "Hazel Daniels"
+date: "May 1, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+AllSites <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.03_EradicationEffectiveness/R Files/BasicData.xlsx")
+head(AllSites)
+AllSites$VegProp <- as.numeric(AllSites$VegProp)
+
+```
+
+# Vegetation
+## Fitting a model for veg
+```{r}
+veg_null = glm(VegProp~1, family = binomial, data=AllSites)
+veg_full = glm(VegProp~Lineage * TrtBin * SoilProp, family=binomial, data=AllSites)
+step(veg_null, scope = list(upper=veg_full), direction="both", test="Chisq", data=AllSItess)
+#VegProp~SoilProp+TrtBin
+
+library(rJava)
+library(glmulti)
+model_full2 <- glmulti(VegProp ~ Lineage * TrtBin * SoilProp, data=AllSites, crit=bic, method = "g")
+#VegProp~TrtBin+SoilProp
+model_full3 <- glmulti(VegProp ~ Lineage * TrtBin * SoilProp, data=AllSites, crit=aic, method = "g")
+#VegProp~Lineage+TrtBin+SoilProp+SoilProp:Lineage
+```
+
+## Fitting a model for NA1 veg only
+```{r}
+#Subsetting data
+NA1Sites <- subset(AllSites, AllSites$Lineage == "NA1")
+
+NAV_null = glm(VegProp~1, family = binomial, data=NA1Sites)
+NAV_full = glm(VegProp~TrtBin * SoilProp, family=binomial, data=NA1Sites)
+step(NAV_null, scope = list(upper=NAV_full), direction="both", test="Chisq", data=NA1Sites)
+#VegProp~SoilProp
+
+NAV_full2 <- glmulti(VegProp ~ TrtBin * SoilProp, data=NA1Sites, crit=bic, method = "g")
+#VegProp~SoilProp
+NAV_full3 <- glmulti(VegProp ~ TrtBin * SoilProp, data=NA1Sites, crit=aic, method = "g")
+#VegProp~TrtBin+SoilProp
+```
+
+## Fitting a model for EU1 veg only
+```{r}
+#Subsetting data
+EU1Sites <- subset(AllSites, AllSites$Lineage == "EU1")
+
+EUV_null = glm(VegProp~1, family = binomial, data=EU1Sites)
+EUV_full = glm(VegProp~TrtBin * SoilProp, family=binomial, data=EU1Sites)
+step(EUV_null, scope = list(upper=EUV_full), direction="both", test="Chisq", data=EU1Sites)
+#VegProp~1
+
+EUV_full2 <- glmulti(VegProp ~ TrtBin * SoilProp, data=EU1Sites, crit=bic, method = "g")
+#VegProp~1
+EUV_full3 <- glmulti(VegProp ~ TrtBin * SoilProp, data=EU1Sites, crit=aic, method = "g")
+#VegProp~1
+```
+
+## Logistic Regression for predicting Positive Veg, Generally
+```{r}
+#Is positive veg predicted by treatment and positive soil &/or interaction? (model from stepwise fit)
+LRVeg_TS1 <- glm(VegProp~SoilProp+TrtBin, family=binomial, data=AllSites)
+summary(LRVeg_TS1)
+
+#Is positive veg predicted by treatment and positive soil &/or interaction? (model from glmulti fit)
+LRVeg_TS2 <- glm(VegProp~Lineage+TrtBin+SoilProp+SoilProp:Lineage, family=binomial, data=AllSites)
+summary(LRVeg_TS2)
+```
+
+#Interpretation
+No significant predictive quality for any factor. 
+
+## Logistic regession for predicting positive veg, NA1 only
+```{r}
+#Is NA1 Positive veg predicted by treatment and positive soil? (model from stepwise fit)
+NA1_TS1 <- glm(VegProp~SoilProp, family=binomial, data=NA1Sites)
+summary(NA1_TS1)
+
+#Is NA1 Positive veg predicted by treatment and positive soil &/or interaction? (model from glmulti fit)
+NA1_TS2 <- glm(VegProp~TrtBin+SoilProp, family=binomial, data=NA1Sites)
+summary(NA1_TS2)
+```
+
+#Interpretation (of NA1_TS1)
+No significant predictive quality for any factor.
+
+## Logistic Regression for predicting positive Veg, EU1 only
+```{r}
+#Is EU1 Positive veg predicted by any factor?
+EU1_TS1 <- glm(VegProp~SoilProp * TrtBin, family=binomial, data=EU1Sites)
+summary(EU1_TS1)
+
+summary(EUV_null)
+```
+
+#Interpretation
+No significant predictive quality for any factor.
+
+# Soil
+## Fitting a model for soil
+```{r}
+soil_null = glm(SoilProp~1, family = binomial, data=AllSites)
+soil_full = glm(SoilProp~Lineage * TrtBin * VegProp, family=binomial, data=AllSites)
+step(soil_null, scope = list(upper=soil_full), direction="both", test="Chisq", data=AllSItess)
+#SoilProp~1
+
+soil_full2 <- glmulti(SoilProp ~ Lineage * TrtBin * VegProp, data=AllSites, crit=bic, method = "g")
+#SoilProp~Lineage+VegProp:Lineage
+soil_full3 <- glmulti(SoilProp ~ Lineage * TrtBin * VegProp, data=AllSites, crit=aic, method = "g")
+#SoilProp~Lineage+TrtBin+VegProp+VegProp:Lineage+VegProp:TrtBin
+```
+
+## Fitting a model for NA1 soil only
+```{r}
+NAS_null = glm(SoilProp~1, family = binomial, data=NA1Sites)
+NAS_full = glm(SoilProp~TrtBin * VegProp, family=binomial, data=NA1Sites)
+step(NAS_null, scope = list(upper=NAS_full), direction="both", test="Chisq", data=NA1Sites)
+#SoilProp~VegProp
+
+NAS_full2 <- glmulti(SoilProp ~ TrtBin * VegProp, data=NA1Sites, crit=bic, method = "g")
+#SoilProp~VegProp
+NAS_full3 <- glmulti(SoilProp ~ TrtBin * VegProp, data=NA1Sites, crit=aic, method = "g")
+#SoilProp~VegProp
+```
+
+## Fitting a model for EU1 soil only
+```{r}
+EUS_null = glm(SoilProp~1, family = binomial, data=EU1Sites)
+EUS_full = glm(SoilProp~TrtBin * VegProp, family=binomial, data=EU1Sites)
+step(EUS_null, scope = list(upper=EUS_full), direction="both", test="Chisq", data=EU1Sites)
+#SoilProp~1
+
+EUS_full2 <- glmulti(SoilProp ~ TrtBin * VegProp, data=EU1Sites, crit=bic, method = "g")
+#SoilProp~1
+EUS_full3 <- glmulti(SoilProp ~ TrtBin * VegProp, data=EU1Sites, crit=aic, method = "g")
+#SoilProp~1
+```
+
+## Logistic Regression for predicting Positive Soil, Generally
+```{r}
+#Is positive soil predicted by positive veg alone? (model from glmulti fit)
+LRSoil_LV1 <- glm(SoilProp~Lineage+VegProp:Lineage, family=binomial, data=AllSites)
+summary(LRSoil_LV1)
+
+LRSoil_LV2 <- glm(SoilProp~Lineage+TrtBin+VegProp+VegProp:Lineage+VegProp:TrtBin, family=binomial, data=AllSites)
+summary(LRSoil_LV2)
+
+summary(NAS_null)
+```
+
+#Interpretation
+No significant predictive quality for any factor.
+
+## Logistic regression for predicting positive soil, NA1 only
+```{r}
+#Is NA1 Positive soil predicted by positive veg alone? (model from stepwise fit & glmulti fit)
+NA1_v1 <- glm(SoilProp~VegProp, family=binomial, data=NA1Sites)
+summary(NA1_v1)
+```
+
+#Interpretation
+No significant predictive quality for any factor.
+
+## Logistic regression for predicting positive soil, EU1 only
+```{r}
+EU1_v1 <- glm(SoilProp~VegProp * TrtBin, family=binomial, data=EU1Sites)
+summary(EU1_v1)
+
+summary(EUS_null)
+```
+
+#Interpretation
+No significant predictive quality for any factor.
+
+#Take Away Message
+Binary information is better suited to this analysis.
