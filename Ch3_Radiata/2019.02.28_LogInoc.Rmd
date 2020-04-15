@@ -1,0 +1,170 @@
+---
+title: "Radiata Inoculation"
+author: "Hazel Daniels"
+output:
+  html_document:
+    df_print: paged
+updated: April 2, 2020
+---
+
+# Artificial inoculation
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# reading in file
+library(readxl)
+Inoc.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.11_RadiataInoculation/2019.01.14_LogInoculationDataSheet.xlsx", sheet=1)
+
+#convert characters to numeric
+Inoc.data$Inoc_1_m1_cm <- as.numeric(as.character(Inoc.data$Inoc_1_m1_cm))
+Inoc.data$Inoc_1_m2 <- as.numeric(as.character(Inoc.data$Inoc_1_m2))
+Inoc.data$Inoc_1_m3 <- as.numeric(as.character(Inoc.data$Inoc_1_m3))
+Inoc.data$Inoc_1_m4 <- as.numeric(as.character(Inoc.data$Inoc_1_m4))
+Inoc.data$Inoc_1_avg <- as.numeric(as.character(Inoc.data$Inoc_1_avg))
+Inoc.data$Inoc_2_m1_cm <- as.numeric(as.character(Inoc.data$Inoc_2_m1_cm))
+Inoc.data$Inoc_2_m2 <- as.numeric(as.character(Inoc.data$Inoc_2_m2))
+Inoc.data$Inoc_2_m3 <- as.numeric(as.character(Inoc.data$Inoc_2_m3))
+Inoc.data$Inoc_2_m4 <- as.numeric(as.character(Inoc.data$Inoc_2_m4))
+Inoc.data$Inoc_2_avg <- as.numeric(as.character(Inoc.data$Inoc_2_avg))
+
+Inoc.data$DIB_avg <- rowMeans(Inoc.data[c('DIB_1_cm', 'DIB_2')], na.rm=TRUE)
+
+# data manipulation
+Nden <- subset(Inoc.data, Species == "Nden")
+Pmen <- subset(Inoc.data, Species == "Pmen")
+Prad <- subset(Inoc.data, Species == "Prad")
+```
+
+## Is lesion length of artficial inoculation different between Nden, Pmen, and Prad (species of concern)?
+```{r, include=FALSE}
+#summary of inoculations
+mean(Prad$Inoc_1_avg, na.rm = TRUE)
+mean(Nden$Inoc_1_avg, na.rm = TRUE)
+mean(Pmen$Inoc_1_avg, na.rm = TRUE)
+median(Prad$Inoc_1_avg, na.rm = TRUE)
+median(Nden$Inoc_1_avg, na.rm = TRUE)
+median(Pmen$Inoc_1_avg, na.rm = TRUE)
+sd(Prad$Inoc_1_avg, na.rm = TRUE)
+sd(Nden$Inoc_1_avg, na.rm = TRUE)
+sd(Pmen$Inoc_1_avg, na.rm = TRUE)
+
+#radiata and tanoak
+t.test(Prad$Inoc_1_avg, Nden$Inoc_1_avg, var.equal = FALSE)
+
+#radiata and doug-fir
+t.test(Prad$Inoc_1_avg, Pmen$Inoc_1_avg, var.equal = FALSE)
+
+#tanoak and doug-fir
+t.test(Nden$Inoc_1_avg, Pmen$Inoc_1_avg, var.equal = FALSE)
+```
+Summary of Prad
+Avg. lesion length   1.475 +/- 1.205 cm
+Median lesion length 0.95 cm
+
+Summary of Nden
+Avg. lesion length   6.395 +/- 4.446 cm
+Median lesion length 4.425 cm
+
+Summary of Pmen
+Avg. lesion length   2.758 +/- 1.170 cm
+Median lesion length 2.388 cm
+
+The difference in lesion length between Prad and Nden is statistically significant (p = 0.00430).
+The difference in lesion length between Prad and Pmen is statistically significant (p = 0.01337).
+The difference in lesion length between Nden and Pmen is statistically significant (p = 0.02323).
+
+
+## Is lesion length of control inoculation different between Nden, Pmen, and Prad (species of concern)?
+```{r, include=FALSE}
+#summary of controls
+mean(Prad$Inoc_2_avg, na.rm = TRUE)
+mean(Nden$Inoc_2_avg, na.rm = TRUE)
+mean(Pmen$Inoc_2_avg, na.rm = TRUE)
+median(Prad$Inoc_2_avg, na.rm = TRUE)
+median(Nden$Inoc_2_avg, na.rm = TRUE)
+median(Pmen$Inoc_2_avg, na.rm = TRUE)
+sd(Prad$Inoc_2_avg, na.rm = TRUE)
+sd(Nden$Inoc_2_avg, na.rm = TRUE)
+sd(Pmen$Inoc_2_avg, na.rm = TRUE)
+
+#radiata and tanoak control
+t.test(Prad$Inoc_2_avg, Nden$Inoc_2_avg, var.equal = FALSE)
+
+#radiata and doug-fir control
+t.test(Prad$Inoc_2_avg, Pmen$Inoc_2_avg, var.equal = FALSE)
+
+#tanoak and doug-fir control
+t.test(Nden$Inoc_2_avg, Pmen$Inoc_2_avg, var.equal = FALSE)
+```
+Summary of Prad
+Avg. lesion length   0.3036 +/- 0.2242 cm
+Median lesion length 0.1875 cm
+
+Summary of Nden
+Avg. lesion length   0.1159 +/- 0.0358 cm
+Median lesion length 0.1 cm
+
+Summary of Pmen
+Avg. lesion length   0.14 +/- 0.0580 cm
+Median lesion length 0.1 cm
+
+The difference in lesion length between Prad and Nden is statistically significant (p = 0.00821).
+The difference in lesion length between Prad and Pmen is statistically significant (p = 0.01942).
+The difference in lesion length between Nden and Pmen is NOT statistically significant (p = 0.2757).
+
+## Is lesion length of control inoculation different than arificial inoculation lesion length within species?
+```{r, include=FALSE}
+#radiata
+t.test(Prad$Inoc_2_avg, Prad$Inoc_1_avg, var.equal = FALSE)
+
+#tanoak
+t.test(Nden$Inoc_2_avg, Nden$Inoc_1_avg, var.equal = FALSE)
+
+#doug-fir
+t.test(Pmen$Inoc_2_avg, Pmen$Inoc_1_avg, var.equal = FALSE)
+```
+The difference in lesion length between Prad field and artificial inoculation is statistically significant (p = 0.00105).
+The difference in lesion length between Prad field and artificial inoculation is statistically significant (p = 0.00086).
+The difference in lesion length between Nden field and artificial inoculation is statistically significant (p = 0.00006).
+
+## Is reisolation (e.g. Culture = Y) predicted by bark depth, diameter (DIB), and/or species?
+```{r, warning=FALSE, echo=TRUE}
+Cult_null <- glm(CultBin~1, family = binomial, data=Inoc.data)
+Cult_full <- glm(CultBin~Species*DIB_avg*Bark, family=binomial, data=Inoc.data)
+step(Cult_null, scope = list(upper=Cult_full), direction="both", test="Chisq", data=Inoc.data)
+
+Inoc.Cult <- glm(formula = CultBin~1+Species+DIB_avg+Species:DIB_avg, family = binomial, data = Inoc.data)
+
+summary(Inoc.Cult)
+```
+No.
+
+# Field Inoculation
+```{r, include=FALSE}
+# reading in file
+library(readxl)
+Field.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.11_RadiataInoculation/2019.01.14_LogInoculationDataSheet.xlsx", sheet=2)
+Field.data
+Field.data$Site <- as.character(as.numeric(Field.data$Site))
+
+Field.data$DIB_avg <- rowMeans(Field.data[c('DIB_1_cm', 'DIB_2')], na.rm=TRUE)
+
+summary(Field.data)
+
+# data manipulation
+Field_Nden <- subset(Field.data, Species == "Nden")
+Field_Pmen <- subset(Field.data, Species == "Pmen")
+Field_Prad <- subset(Field.data, Species == "Prad")
+```
+
+## Is isolation (e.g. Culture = Y) predicted by site, bark depth, diameter (DIB), and/or species?
+```{r, warning=FALSE, echo=TRUE}
+Field_null <- glm(CultBin~1, family = binomial, data=Field.data)
+Field_full <- glm(CultBin~Site*Species*DIB_avg*Bark, family=binomial, data=Field.data)
+step(Field_null, scope = list(upper=Field_full), direction="both", test="Chisq", data=Field.data)
+
+Field.Cult <- glm(formula = CultBin ~ DIB_avg + Bark, family = binomial, data = Field.data)
+
+summary(Field.Cult)
+```
+No.
