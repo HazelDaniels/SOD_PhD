@@ -4,13 +4,15 @@ author: "Hazel Daniels"
 output:
   html_document:
     df_print: paged
-updated: April 2, 2020
+updated: April 16, 2020
 ---
 
-# Artificial inoculation
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
 
+# Artificial inoculation
+```{r}
 # reading in file
 library(readxl)
 Inoc.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.11_RadiataInoculation/2019.01.14_LogInoculationDataSheet.xlsx", sheet=1)
@@ -35,85 +37,159 @@ Pmen <- subset(Inoc.data, Species == "Pmen")
 Prad <- subset(Inoc.data, Species == "Prad")
 ```
 
-## Is lesion length of artficial inoculation different between Nden, Pmen, and Prad (species of concern)?
-```{r, include=FALSE}
-#summary of inoculations
-mean(Prad$Inoc_1_avg, na.rm = TRUE)
-mean(Nden$Inoc_1_avg, na.rm = TRUE)
-mean(Pmen$Inoc_1_avg, na.rm = TRUE)
-median(Prad$Inoc_1_avg, na.rm = TRUE)
-median(Nden$Inoc_1_avg, na.rm = TRUE)
-median(Pmen$Inoc_1_avg, na.rm = TRUE)
-sd(Prad$Inoc_1_avg, na.rm = TRUE)
-sd(Nden$Inoc_1_avg, na.rm = TRUE)
-sd(Pmen$Inoc_1_avg, na.rm = TRUE)
+## Is lesion length of artificial inoculation different between Species?
+```{r}
+# summary of inoculations
+library(dplyr)
+group_by(Inoc.data, Species) %>%
+  summarise(
+    count = n(),
+    mean = mean(Inoc_1_avg, na.rm = TRUE),
+    sd = sd(Inoc_1_avg, na.rm = TRUE),
+    median = median(Inoc_1_avg, na.rm = TRUE)
+  )
 
-#radiata and tanoak
-t.test(Prad$Inoc_1_avg, Nden$Inoc_1_avg, var.equal = FALSE)
+# visualize
+library("ggpubr")
+ggboxplot(Inoc.data, x = "Species", y = "Inoc_1_avg", 
+          color = "Species", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+          order = c("Nden", "Prad", "Pmen"),
+          ylab = "Average lesion size (cm)", xlab = "Species")
 
-#radiata and doug-fir
-t.test(Prad$Inoc_1_avg, Pmen$Inoc_1_avg, var.equal = FALSE)
+ggline(Inoc.data, x = "Species", y = "Inoc_1_avg", 
+       add = c("mean_se", "jitter"), 
+       order = c("Nden", "Prad", "Pmen"),
+       ylab = "Average lesion size (cm)", xlab = "Species")
 
-#tanoak and doug-fir
-t.test(Nden$Inoc_1_avg, Pmen$Inoc_1_avg, var.equal = FALSE)
+# ANOVA
+Inoc.anova <- aov(Inoc_1_avg ~ Species, data = Inoc.data)
+summary(Inoc.anova)
+
+# Tukey pairwise comparisons
+TukeyHSD(Inoc.anova)
+
+# testing assumption of equal variance
+plot(Inoc.anova, 1)
+
+library(car)
+leveneTest(Inoc_1_avg ~ Species, data = Inoc.data)
+#assumption violated!
+
+# ANOVA w/o assumption of equal variance
+oneway.test(Inoc_1_avg ~ Species, data = Inoc.data)
+
+# pairwise comparison w/o pooled variance
+pairwise.t.test(Inoc.data$Inoc_1_avg, Inoc.data$Species, p.adjust.method = "BH", pool.sd = FALSE)
+
+# normality test
+plot(Inoc.anova, 2)
+#assumption valid
 ```
-Summary of Prad
-Avg. lesion length   1.475 +/- 1.205 cm
-Median lesion length 0.95 cm
 
-Summary of Nden
-Avg. lesion length   6.395 +/- 4.446 cm
-Median lesion length 4.425 cm
+## Is lesion length of artificial inoculation different between lineage?
+```{r}
+group_by(Inoc.data, Inoc_1) %>%
+  summarise(
+    count = n(),
+    mean = mean(Inoc_1_avg, na.rm = TRUE),
+    sd = sd(Inoc_1_avg, na.rm = TRUE),
+    median = median(Inoc_1_avg, na.rm = TRUE)
+  )
 
-Summary of Pmen
-Avg. lesion length   2.758 +/- 1.170 cm
-Median lesion length 2.388 cm
+# visualize
+ggboxplot(Inoc.data, x = "Inoc_1", y = "Inoc_1_avg", 
+          color = "Inoc_1", palette = c("#00AFBB", "#FC4E07"),
+          order = c("EU1", "NA1"),
+          ylab = "Average lesion size (cm)", xlab = "Lineage")
 
-The difference in lesion length between Prad and Nden is statistically significant (p = 0.00430).
-The difference in lesion length between Prad and Pmen is statistically significant (p = 0.01337).
-The difference in lesion length between Nden and Pmen is statistically significant (p = 0.02323).
+## by lineage by species
+ggboxplot(Inoc.data, x = "Inoc_1", y = "Inoc_1_avg", 
+          color = "Species", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+          order = c("EU1", "NA1"),
+          ylab = "Average lesion size (cm)", xlab = "Lineage")
 
+ggline(Inoc.data, x = "Inoc_1", y = "Inoc_1_avg", 
+       add = c("mean_se", "jitter"), 
+       order = c("EU1", "NA1"),
+       ylab = "Average lesion size (cm)", xlab = "Lineage")
 
-## Is lesion length of control inoculation different between Nden, Pmen, and Prad (species of concern)?
-```{r, include=FALSE}
+# ANOVA
+Lin.anova <- aov(Inoc_1_avg ~ Inoc_1, data = Inoc.data)
+summary(Lin.anova)
+
+# Tukey pairwise comparisons
+TukeyHSD(Lin.anova)
+
+# testing assumption of equal variance
+plot(Lin.anova, 1)
+
+library(car)
+leveneTest(Inoc_1_avg ~ Inoc_1, data = Inoc.data)
+#assumption violated!
+
+# ANOVA w/o assumption of equal variance
+oneway.test(Inoc_1_avg ~ Inoc_1, data = Inoc.data)
+
+# pairwise comparison w/o pooled variance
+pairwise.t.test(Inoc.data$Inoc_1_avg, Inoc.data$Inoc_1, p.adjust.method = "BH", pool.sd = FALSE)
+
+# normality test
+plot(Lin.anova, 2)
+#assumption valid
+```
+
+## Is necrosis of control inoculation different between species?
+```{r}
 #summary of controls
-mean(Prad$Inoc_2_avg, na.rm = TRUE)
-mean(Nden$Inoc_2_avg, na.rm = TRUE)
-mean(Pmen$Inoc_2_avg, na.rm = TRUE)
-median(Prad$Inoc_2_avg, na.rm = TRUE)
-median(Nden$Inoc_2_avg, na.rm = TRUE)
-median(Pmen$Inoc_2_avg, na.rm = TRUE)
-sd(Prad$Inoc_2_avg, na.rm = TRUE)
-sd(Nden$Inoc_2_avg, na.rm = TRUE)
-sd(Pmen$Inoc_2_avg, na.rm = TRUE)
+group_by(Inoc.data, Species) %>%
+  summarise(
+    count = n(),
+    mean = mean(Inoc_2_avg, na.rm = TRUE),
+    sd = sd(Inoc_2_avg, na.rm = TRUE),
+    median = median(Inoc_2_avg, na.rm = TRUE)
+  )
 
-#radiata and tanoak control
-t.test(Prad$Inoc_2_avg, Nden$Inoc_2_avg, var.equal = FALSE)
+# visualize
+ggboxplot(Inoc.data, x = "Species", y = "Inoc_2_avg", 
+          color = "Species", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+          order = c("Nden", "Prad", "Pmen"),
+          ylab = "Average reaction size (cm)", xlab = "Species")
 
-#radiata and doug-fir control
-t.test(Prad$Inoc_2_avg, Pmen$Inoc_2_avg, var.equal = FALSE)
+ggline(Inoc.data, x = "Species", y = "Inoc_2_avg", 
+       add = c("mean_se", "jitter"), 
+       order = c("Nden", "Prad", "Pmen"),
+       ylab = "Average reaction size (cm)", xlab = "Species")
 
-#tanoak and doug-fir control
-t.test(Nden$Inoc_2_avg, Pmen$Inoc_2_avg, var.equal = FALSE)
+# ANOVA
+Ctrl.anova <- aov(Inoc_2_avg ~ Species, data = Inoc.data)
+summary(Ctrl.anova)
+
+# Tukey pairwise comparisons
+TukeyHSD(Ctrl.anova)
+
+# testing assumption of equal variance
+plot(Ctrl.anova, 1)
+
+library(car)
+leveneTest(Inoc_2_avg ~ Species, data = Inoc.data)
+#assumption violated!
+
+# ANOVA w/o assumption of equal variance
+oneway.test(Inoc_2_avg ~ Species, data = Inoc.data)
+
+# pairwise comparison w/o pooled variance
+pairwise.t.test(Inoc.data$Inoc_2_avg, Inoc.data$Species, p.adjust.method = "BH", pool.sd = FALSE)
+
+# normality test
+plot(Ctrl.anova, 2)
+#assumption violated?
+
+# Kruskal-Wallis
+kruskal.test(Inoc_2_avg ~ Species, data = Inoc.data)
 ```
-Summary of Prad
-Avg. lesion length   0.3036 +/- 0.2242 cm
-Median lesion length 0.1875 cm
 
-Summary of Nden
-Avg. lesion length   0.1159 +/- 0.0358 cm
-Median lesion length 0.1 cm
-
-Summary of Pmen
-Avg. lesion length   0.14 +/- 0.0580 cm
-Median lesion length 0.1 cm
-
-The difference in lesion length between Prad and Nden is statistically significant (p = 0.00821).
-The difference in lesion length between Prad and Pmen is statistically significant (p = 0.01942).
-The difference in lesion length between Nden and Pmen is NOT statistically significant (p = 0.2757).
-
-## Is lesion length of control inoculation different than arificial inoculation lesion length within species?
-```{r, include=FALSE}
+## Is lesion length of control inoculation different than arificial inoculation  within species?
+```{r}
 #radiata
 t.test(Prad$Inoc_2_avg, Prad$Inoc_1_avg, var.equal = FALSE)
 
@@ -123,12 +199,9 @@ t.test(Nden$Inoc_2_avg, Nden$Inoc_1_avg, var.equal = FALSE)
 #doug-fir
 t.test(Pmen$Inoc_2_avg, Pmen$Inoc_1_avg, var.equal = FALSE)
 ```
-The difference in lesion length between Prad field and artificial inoculation is statistically significant (p = 0.00105).
-The difference in lesion length between Prad field and artificial inoculation is statistically significant (p = 0.00086).
-The difference in lesion length between Nden field and artificial inoculation is statistically significant (p = 0.00006).
 
 ## Is reisolation (e.g. Culture = Y) predicted by bark depth, diameter (DIB), and/or species?
-```{r, warning=FALSE, echo=TRUE}
+```{r}
 Cult_null <- glm(CultBin~1, family = binomial, data=Inoc.data)
 Cult_full <- glm(CultBin~Species*DIB_avg*Bark, family=binomial, data=Inoc.data)
 step(Cult_null, scope = list(upper=Cult_full), direction="both", test="Chisq", data=Inoc.data)
@@ -137,16 +210,73 @@ Inoc.Cult <- glm(formula = CultBin~1+Species+DIB_avg+Species:DIB_avg, family = b
 
 summary(Inoc.Cult)
 ```
-No.
+
+## Are reisolation rates different between species?
+```{r}
+# create data frame for analysis
+colA <- c("Nden", "Pmen", "Prad")
+colB <- c("10", "2", "15")
+colC <- c("11", "10", "17")
+RIR.data <- data.frame(Species=colA, Reisolated=colB, Total=colC)
+RIR.data$RIR <- 
+
+# summary of RIR
+group_by(Inoc.data, Species) %>%
+  summarise(
+    count = n(),
+    mean = mean(Inoc_1_avg, na.rm = TRUE),
+    sd = sd(Inoc_1_avg, na.rm = TRUE),
+    median = median(Inoc_1_avg, na.rm = TRUE)
+  )
+
+# visualize
+ggboxplot(Inoc.data, x = "Species", y = "Culture", 
+          color = "Species", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+          order = c("Nden", "Prad", "Pmen"),
+          ylab = "Average lesion size (cm)", xlab = "Species")
+
+ggline(Inoc.data, x = "Species", y = "Inoc_1_avg", 
+       add = c("mean_se", "jitter"), 
+       order = c("Nden", "Prad", "Pmen"),
+       ylab = "Average lesion size (cm)", xlab = "Species")
+
+# ANOVA
+Inoc.anova <- aov(Inoc_1_avg ~ Species, data = Inoc.data)
+summary(Inoc.anova)
+
+# Tukey pairwise comparisons
+TukeyHSD(Inoc.anova)
+
+# testing assumption of equal variance
+plot(Inoc.anova, 1)
+
+library(car)
+leveneTest(Inoc_1_avg ~ Species, data = Inoc.data)
+#assumption violated!
+
+# ANOVA w/o assumption of equal variance
+oneway.test(Inoc_1_avg ~ Species, data = Inoc.data)
+
+# pairwise comparison w/o pooled variance
+pairwise.t.test(Inoc.data$Inoc_1_avg, Inoc.data$Species, p.adjust.method = "BH", pool.sd = FALSE)
+
+# normality test
+plot(Inoc.anova, 2)
+#assumption valid
+```
+
+## Are reisolation rates different between lineage?
+```{r}
+```
 
 # Field Inoculation
-```{r, include=FALSE}
+```{r}
 # reading in file
-library(readxl)
 Field.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.11_RadiataInoculation/2019.01.14_LogInoculationDataSheet.xlsx", sheet=2)
 Field.data
 Field.data$Site <- as.character(as.numeric(Field.data$Site))
 
+# averaging DIBs
 Field.data$DIB_avg <- rowMeans(Field.data[c('DIB_1_cm', 'DIB_2')], na.rm=TRUE)
 
 summary(Field.data)
@@ -158,7 +288,7 @@ Field_Prad <- subset(Field.data, Species == "Prad")
 ```
 
 ## Is isolation (e.g. Culture = Y) predicted by site, bark depth, diameter (DIB), and/or species?
-```{r, warning=FALSE, echo=TRUE}
+```{r}
 Field_null <- glm(CultBin~1, family = binomial, data=Field.data)
 Field_full <- glm(CultBin~Site*Species*DIB_avg*Bark, family=binomial, data=Field.data)
 step(Field_null, scope = list(upper=Field_full), direction="both", test="Chisq", data=Field.data)
@@ -167,4 +297,3 @@ Field.Cult <- glm(formula = CultBin ~ DIB_avg + Bark, family = binomial, data = 
 
 summary(Field.Cult)
 ```
-No.
