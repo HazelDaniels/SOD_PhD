@@ -213,56 +213,16 @@ summary(Inoc.Cult)
 
 ## Are reisolation rates different between species?
 ```{r}
-# create data frame for analysis
-colA <- c("Nden", "Pmen", "Prad")
-colB <- c("10", "2", "15")
-colC <- c("11", "10", "17")
-RIR.data <- data.frame(Species=colA, Reisolated=colB, Total=colC)
-RIR.data$RIR <- 
+# create data frame
+colA <- c("Nden","Pmen","Prad")
+colB <- c(10, 2, 15)
+colC <- c(1, 8, 2)
+colD <- c(11, 10, 17)
+RIR.data <- data.frame(Species=colA, Pos=colB, Neg=colC, Total=colD)
+RIR.data$RIR <- RIR.data$Pos/RIR.data$Total
 
-# summary of RIR
-group_by(Inoc.data, Species) %>%
-  summarise(
-    count = n(),
-    mean = mean(Inoc_1_avg, na.rm = TRUE),
-    sd = sd(Inoc_1_avg, na.rm = TRUE),
-    median = median(Inoc_1_avg, na.rm = TRUE)
-  )
+# analysis
 
-# visualize
-ggboxplot(Inoc.data, x = "Species", y = "Culture", 
-          color = "Species", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
-          order = c("Nden", "Prad", "Pmen"),
-          ylab = "Average lesion size (cm)", xlab = "Species")
-
-ggline(Inoc.data, x = "Species", y = "Inoc_1_avg", 
-       add = c("mean_se", "jitter"), 
-       order = c("Nden", "Prad", "Pmen"),
-       ylab = "Average lesion size (cm)", xlab = "Species")
-
-# ANOVA
-Inoc.anova <- aov(Inoc_1_avg ~ Species, data = Inoc.data)
-summary(Inoc.anova)
-
-# Tukey pairwise comparisons
-TukeyHSD(Inoc.anova)
-
-# testing assumption of equal variance
-plot(Inoc.anova, 1)
-
-library(car)
-leveneTest(Inoc_1_avg ~ Species, data = Inoc.data)
-#assumption violated!
-
-# ANOVA w/o assumption of equal variance
-oneway.test(Inoc_1_avg ~ Species, data = Inoc.data)
-
-# pairwise comparison w/o pooled variance
-pairwise.t.test(Inoc.data$Inoc_1_avg, Inoc.data$Species, p.adjust.method = "BH", pool.sd = FALSE)
-
-# normality test
-plot(Inoc.anova, 2)
-#assumption valid
 ```
 
 ## Are reisolation rates different between lineage?
