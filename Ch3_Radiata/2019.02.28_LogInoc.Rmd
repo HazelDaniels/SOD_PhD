@@ -35,6 +35,8 @@ Inoc.data$DIB_avg <- rowMeans(Inoc.data[c('DIB_1_cm', 'DIB_2')], na.rm=TRUE)
 Nden <- subset(Inoc.data, Species == "Nden")
 Pmen <- subset(Inoc.data, Species == "Pmen")
 Prad <- subset(Inoc.data, Species == "Prad")
+EU1 <- subset(Inoc.data, Inoc_1 == "EU1")
+NA1 <- subset(Inoc.data, Inoc_1 == "NA1")
 ```
 
 ## Is lesion length of artificial inoculation different between Species?
@@ -200,10 +202,10 @@ t.test(Nden$Inoc_2_avg, Nden$Inoc_1_avg, var.equal = FALSE)
 t.test(Pmen$Inoc_2_avg, Pmen$Inoc_1_avg, var.equal = FALSE)
 ```
 
-## Is reisolation (e.g. Culture = Y) predicted by bark depth, diameter (DIB), and/or species?
+## Is reisolation (e.g. Culture = Y) predicted by bark depth, diameter (DIB), P. ramorum lineage, and/or species?
 ```{r}
 Cult_null <- glm(CultBin~1, family = binomial, data=Inoc.data)
-Cult_full <- glm(CultBin~Species*DIB_avg*Bark, family=binomial, data=Inoc.data)
+Cult_full <- glm(CultBin~Species*DIB_avg*Bark*Inoc_1, family=binomial, data=Inoc.data)
 step(Cult_null, scope = list(upper=Cult_full), direction="both", test="Chisq", data=Inoc.data)
 
 Inoc.Cult <- glm(formula = CultBin~1+Species+DIB_avg+Species:DIB_avg, family = binomial, data = Inoc.data)
@@ -213,20 +215,32 @@ summary(Inoc.Cult)
 
 ## Are reisolation rates different between species?
 ```{r}
-# create data frame
-colA <- c("Nden","Pmen","Prad")
-colB <- c(10, 2, 15)
-colC <- c(1, 8, 2)
-colD <- c(11, 10, 17)
-RIR.data <- data.frame(Species=colA, Pos=colB, Neg=colC, Total=colD)
-RIR.data$RIR <- RIR.data$Pos/RIR.data$Total
+# create contingency table
+RIR.table <- matrix (c(10, 1, 2, 8, 15, 2), nrow = 3, ncol = 2, byrow = TRUE)
+rownames(RIR.table) <- c("Nden", "Pmen", "Prad")
+colnames(RIR.table) <- c("Pos", "Neg")
+RIR.table
 
-# analysis
-
+# chi-square analysis
+RIR.chi <- chisq.test(RIR.table)
+RIR.chi
+RIR.chi.sim <- chisq.test(RIR.table, simulate.p.value = TRUE)
+RIR.chi.sim
 ```
 
 ## Are reisolation rates different between lineage?
 ```{r}
+# create contingency table
+RIR.tab.lin <- matrix (c(14, 13, 5, 6), nrow = 2, ncol = 2)
+rownames(RIR.tab.lin) <- c("EU1", "NA1")
+colnames(RIR.tab.lin) <- c("Pos", "Neg")
+RIR.tab.lin
+
+# chi-square analysis
+RIR.chi.lin <- chisq.test(RIR.tab.lin)
+RIR.chi.lin
+RIR.chi.lin.sim <- chisq.test(RIR.tab.lin, simulate.p.value = TRUE)
+RIR.chi.lin.sim
 ```
 
 # Field Inoculation
