@@ -1,8 +1,10 @@
 ---
 title: "Eradication Effectiveness Binary"
 author: "Hazel Daniels"
-date: "April 24, 2019"
-output: html_document
+output:
+  html_document:
+    df_print: paged
+updated: April 30, 2020
 ---
 
 ```{r setup, include=FALSE}
@@ -23,14 +25,7 @@ head(AllSites)
 veg_null = glm(VegBin~1, family = binomial, data=AllSites)
 veg_full = glm(VegBin~Lineage * TrtBin * SoilBin, family=binomial, data=AllSites)
 step(veg_null, scope = list(upper=veg_full), direction="both", test="Chisq", data=AllSItess)
-#VegBin ~ TrtBin + SoilBin + TrtBin:SoilBin
-
-#library(rJava)
-#library(glmulti)
-#model_full2 <- glmulti(VegBin ~ Lineage * TrtBin * SoilBin, data=AllSites, crit=bic, method = "g")
-#VegBin~1+TrtBin+SoilBin:TrtBin
-#model_full3 <- glmulti(VegBin ~ Lineage * TrtBin * SoilBin, data=AllSites, crit=aic, method = "g")
-#VegBin~1+TrtBin+SoilBin:TrtBin
+#VegBin ~ TrtBin + SoilBin
 ```
 
 ## Fitting a model for NA1 veg only
@@ -41,12 +36,7 @@ NA1Sites <- subset(AllSites, AllSites$Lineage == "NA1")
 NAV_null = glm(VegBin~1, family = binomial, data=NA1Sites)
 NAV_full = glm(VegBin~TrtBin * SoilBin, family=binomial, data=NA1Sites)
 step(NAV_null, scope = list(upper=NAV_full), direction="both", test="Chisq", data=NA1Sites)
-#VegBin~SoilBin + TrtBin
-
-#NAV_full2 <- glmulti(VegBin ~ TrtBin * SoilBin, data=NA1Sites, crit=bic, method = "g")
-#VegBin~1+TrtBin+SoilBin:TrtBin
-#NAV_full3 <- glmulti(VegBin ~ TrtBin * SoilBin, data=NA1Sites, crit=aic, method = "g")
-#VegBin~1+TrtBin+SoilBin:TrtBin
+#VegBin ~ SoilBin + TrtBin
 ```
 
 ## Fitting a model for EU1 veg only
@@ -57,35 +47,26 @@ EU1Sites <- subset(AllSites, AllSites$Lineage == "EU1")
 EUV_null = glm(VegBin~1, family = binomial, data=EU1Sites)
 EUV_full = glm(VegBin~TrtBin * SoilBin, family=binomial, data=EU1Sites)
 step(EUV_null, scope = list(upper=EUV_full), direction="both", test="Chisq", data=EU1Sites)
-#VegBin~1
-
-#EUV_full2 <- glmulti(VegBin ~ TrtBin * SoilBin, data=EU1Sites, crit=bic, method = "g")
-#VegBin~1
-#EUV_full3 <- glmulti(VegBin ~ TrtBin * SoilBin, data=EU1Sites, crit=aic, method = "g")
-#VegBin~1
+#VegBin ~ SoilBin + TrtBin
 ```
 
 ## Logistic Regression for predicting positive veg, Generally
 ```{r}
-#Is positive veg predicted by treatment and positive soil &/or interaction? (model from stepwise fit)
-LRVeg_TS1 <- glm(VegBin ~ TrtBin + SoilBin + TrtBin:SoilBin, family=binomial, data=AllSites)
+#Is positive veg predicted by treatment and positive soil? (model from stepwise fit)
+LRVeg_TS1 <- glm(VegBin ~ TrtBin + SoilBin, family=binomial, data=AllSites)
 summary(LRVeg_TS1)
 
-#Is positive veg predicted by treatment and positive soil &/or interaction? (model from glmulti fit) USE THIS ONE**********************
-LRVeg_TS2 <- glm(VegBin~1+TrtBin+SoilBin:TrtBin, family=binomial, data=AllSites)
-summary(LRVeg_TS2)
+1-pchisq(120.352-93.669, 87-85)
 ```
 
-## Interpretation (of LRVeg_TS2)
-For a given site, any treatment changes the log odds of there being positive vegetation by -2.1.
+## Interpretation (of LRVeg_TS1)
+For a given site, any treatment changes the log odds of there being positive vegetation by -1.9.
 
 Intercept = 1 (pos veg on plot). It looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). 
 
 It is plausible that the data emanate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant. Given a 1 unit increase in TrtBin, we expect a loss of 2 in VegBin (e.g. when Treatment is applied, we expect positive veg to decrease from "present" to "not present").
 
-> 1-pchisq(79.728-60.026, 58-55)
-
-[1] 0.0001956716
+chi square 0.000001606424
 
 ## Logistic regession for predicting positive veg, NA1 only
 ```{r}
