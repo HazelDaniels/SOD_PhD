@@ -74,22 +74,17 @@ chi square 0.000001606424
 NA1_TS1 <- glm(VegBin~SoilBin + TrtBin, family=binomial, data=NA1Sites)
 summary(NA1_TS1)
 
-#Is NA1 Positive veg predicted by treatment and positive soil &/or interaction? (model from glmulti fit)
-NA1_TS2 <- glm(VegBin~1+TrtBin+SoilBin:TrtBin, family=binomial, data=NA1Sites)
-summary(NA1_TS2)
+1-pchisq(70.852-49.204, 51-49)
 ```
 
 ## Interpretation (of NA1_TS1)
-For a given NA1 site, any treatment changes the log odds of there being positive vegetation by -1.73.
+For a given NA1 site, any treatment changes the log odds of there being positive vegetation by -2.3.
 
 Intercept = 1 (as in, yes there's pos veg on plot), it looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). 
 
 It is plausible that the data emanate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
 
-> 1-pchisq(56.814-41.192, 40-38)
-
-[1] 0.0004052526
-
+chi square 0.00001991574
 
 ## Logistic Regression for predicting positive Veg, EU1 only
 ```{r}
@@ -97,18 +92,17 @@ It is plausible that the data emanate from a logistic model that includes these 
 EU1_TS1 <- glm(VegBin~SoilBin * TrtBin, family=binomial, data=EU1Sites)
 summary(EU1_TS1)
 
-summary(EUV_null)
+1-pchisq(49.461-40.025, 35-32)
 ```
 
 ## Interpretation
-For a given EU1 site, no factors were found to have any predictive quality for positive vegetation.
+For a given EU1 site, any treatment changes the log odds of there being positive vegetation by -1.9.
 
-There are no factors with any predictive quality for EU1 positive veg. We accept the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
+Intercept = 1 (as in, yes there's pos veg on plot), it looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). 
 
-> 1-pchisq(19.069-18.421, 17-15)
+It is plausible that the data emanate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
 
-[1] 0.7232502
-
+chi square 0.02402205
 
 # Soil
 ## Fitting a model for soil
