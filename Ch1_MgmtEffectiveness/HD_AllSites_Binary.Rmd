@@ -10,7 +10,7 @@ updated: April 30, 2020
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(readxl)
-AllSites <- read_xlsx("C:\\Users\\dixie\\Documents\\GitHub\\SOD_PhD\\Ch1_MgmtEffectiveness\\BasicData.xlsx")
+AllSites <- read_xlsx("BasicData.xlsx")
 head(AllSites)
 AllSites$VegBin <- as.numeric(as.character(AllSites$VegBin))
 AllSites$SoilBin <- as.numeric(as.character(AllSites$SoilBin))

@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 # reading in file
 library(readxl)
-Inoc.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.11_RadiataInoculation/2019.01.14_LogInoculationDataSheet.xlsx", sheet=1)
+Inoc.data <- read_xlsx("2019.01.14_LogInoculationDataSheet.xlsx", sheet=1)
 
 #convert characters to numeric
 Inoc.data$Inoc_1_m1_cm <- as.numeric(as.character(Inoc.data$Inoc_1_m1_cm))
