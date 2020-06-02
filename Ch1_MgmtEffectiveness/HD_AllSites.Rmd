@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(readxl)
-AllSites <- read_xlsx("C:/Users/hazel/Google Drive/_Ph.D. Forestry/Research/2018.03_EradicationEffectiveness/R Files/BasicData.xlsx")
+AllSites <- read_xlsx("BasicData.xlsx")
 head(AllSites)
 AllSites$VegBin <- as.numeric(as.character(AllSites$VegBin))
 AllSites$SoilBin <- as.numeric(as.character(AllSites$SoilBin))
