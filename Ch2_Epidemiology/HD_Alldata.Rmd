@@ -8,8 +8,7 @@ output: html_document
 # Reading in file 
 ```{r}
 library(readxl)
-All.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.06_SpatialAnalysis/SOD_POS_2001-2018.xlsx")
-All.data
+All.data <- read_xlsx("SOD_POS_2001-2018.xlsx")
 colnames(All.data)[1] <- "SAMPLE"
 ```
 
@@ -17,9 +16,8 @@ colnames(All.data)[1] <- "SAMPLE"
 
 ## Reading in file
 ```{r}
-EU1.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.06_SpatialAnalysis/SOD_POS_2001-2018.xlsx")
+EU1.data <- read_xlsx("SOD_POS_2001-2018.xlsx")
 EU1.data <- EU1.data[unlist(All.data$LINEAGE) %in% "EU1",]
-EU1.data
 colnames(EU1.data)[1] <- "SAMPLE"
 ```
 
@@ -83,9 +81,8 @@ ggplot(EU1.cluster, aes(x=LAT, y=LONG, colour=as.factor(CLUSTER))) + geom_point(
 ## Reading in file
 ```{r}
 library(readxl)
-NA1.data <- read_xlsx("C:/Users/dixie/Google Drive/_Ph.D. Forestry/Research/2018.06_SpatialAnalysis/SOD_POS_2001-2018.xlsx")
+NA1.data <- read_xlsx("SOD_POS_2001-2018.xlsx")
 NA1.data <- NA1.data[unlist(NA1.data$LINEAGE) %in% "NA1",]
-NA1.data
 colnames(NA1.data)[1] <- "SAMPLE"
 
 # 2001 - 2004 data
