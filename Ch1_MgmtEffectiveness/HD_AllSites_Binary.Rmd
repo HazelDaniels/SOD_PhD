@@ -18,6 +18,29 @@ AllSites$TrtBin <- as.numeric(as.character(AllSites$TrtBin))
 head(AllSites)
 ```
 
+#Visualizing raw data
+```{r}
+library(ggplot2)
+
+ggplot(AllSites, aes(x=x) ) +
+  geom_histogram( aes(x = VegBin, y = stat(count))) +
+  scale_x_continuous(name = "Was P.ramorum found in residual veg sample?", breaks = seq(0, 1)) +
+  facet_grid(Lineage ~ TrtBin) +
+  labs(title = "Vegetation") +
+  theme_bw()
+
+ggplot(AllSites, aes(x=x)) +
+  geom_histogram( aes(x = SoilBin, y = stat(count))) +
+  scale_x_continuous(name = "Was P.ramorum found in residual Soil sample?", breaks = seq(0, 1)) +
+  facet_grid(Lineage ~ TrtBin) +
+  labs(title = "Soil") +
+  theme_bw()
+
+#Raw vegetation data seems to show that, for untreated sites (0 column) many were positive for P.ramorum (both NA1 and EU1). For treated sites (1 column) fewer sites tested positive than negative.
+
+#Raw soil data seems to show that, regardless of treatment, fewer sites tested positive for P.ramorum than negative.
+```
+
 # Vegetation
 ## Fitting a model for veg
 ```{r}
