@@ -1,0 +1,202 @@
+---
+title: "3. Genotyping Reads"
+author: "Javier Tabima & Hazel Daniels"
+date: "11 August 2020"
+output: html_document
+---
+
+# General Steps
+
+1. Creating a genotype file per sample
+2. Combining all individual genotypes into a large VCF file
+
+***
+
+# Part 1: Creating a genotype file per sample
+
+In order to facilitate the process of genotyping we will create one genotype file (`gVCF`) file per sample in GATK Haplotype caller. I have written a gVCF.sh script for this purpose. The order to proceed is this
+
+1. Creating a list of BAMS
+2. Creating the index files (.dict and .fai).
+3. Running GATK
+
+## Procedure
+
+### Creating a list of BAMS
+
+Its the same script we have been using so far but this time for `bams/*_dupmrk.bam`, as these are the BAM files with the duplicates marked and the indels realigned
+
+```bash
+for i in /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/bams/*_dupmrk.bam; do a=$(basename $i| sed 's/_dupmrk.bam//g'); b=$(readlink -f $i); printf $a";"$b"\n"; done > bams.list
+```
+
+### Creating the index files (.dict and .fai).
+
+Dor more info go [here](https://gatkforums.broadinstitute.org/gatk/discussion/1601/how-can-i-prepare-a-fasta-file-to-use-as-reference)
+
+```bash
+# PICARD index
+/raid1/home/bpp/tabimaj/bin/jre1.8.0_144/bin/java -Xmx50g -Djava.io.tmpdir=/data -jar /raid1/home/bpp/tabimaj/bin/picard.jar CreateSequenceDictionary R=PR-102.fasta O=PR-102.dict
+# Samtools index
+samtools faidx PR-102.fasta
+```
+
+### Running GATK
+
+The GATK script `gVCF.sh` uses the list of BAMs and GATK and the indices we created to genotype the data
+
+```gVCF.sh
+#!/bin/bash
+#$ -N mkgvcf_uf
+#$ -e gvcf_error
+#$ -o gvcf_output
+#$ -V
+#$ -cwd
+#$ -S /bin/bash
+#$ -l mem_free=10G
+#$ -t 1-60:1
+
+i=$(expr $SGE_TASK_ID - 1)
+FILE=( `cat "/nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/bams.list" `)
+IFS=';' read -r -a arr <<< "${FILE[$i]}"
+
+mkdir -p gvcf/
+
+REF="/nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/PR-102.fasta"
+
+CMD='/raid1/home/bpp/tabimaj/bin/gatk-4.0.1.2/gatk --java-options "-Xmx10g -Djava.io.tmpdir=/data" HaplotypeCaller --reference $REF --ERC GVCF -ploidy 2 --input ${arr[1]} -O gvcf/${arr[0]}.g.vcf.gz'
+echo $CMD
+eval $CMD
+
+echo
+date
+echo "mkgvcf finished."
+
+myEpoch=(`date +%s`)
+echo "Epoch start:" $myEpoch
+
+# EOF.
+```
+
+>Note: Create the error and output folders before running the script.
+
+To run the script do
+
+```bash
+qsub gVCF.sh
+```
+
+***
+
+# Part 2: Combining all genotypes into a large VCF file
+
+After the gVCF files are done, we need to combine them into a single VCF file.
+
+1. Creating a list of gVCF
+2. Running CombineGVCFs to combine all gVCF
+3. Genotype the combined gVCF
+
+## Procedure
+
+### Creating a list of gVCF
+
+```bash
+for i in /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/gVCF/*; do readlink -f $i; done > gvcf.list
+```
+
+
+### Running CombineGVCFs to combine all gVCF for each scaffold
+
+```Combine_vcf.sh
+#! /bin/bash
+#$ -N Combine_vcf
+#$ -V
+#$ -cwd
+#$ -S /bin/bash
+#$ -e vcf_error
+#$ -o vcf_output
+
+i=$(expr $SGE_TASK_ID - 1)
+
+REF="/nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/PR-102.fasta"
+CMD="/raid1/home/bpp/tabimaj/bin/gatk-4.0.1.2/gatk CombineGVCFs -R $REF -V gvcf.list  -O ramorum_2020_05.gvcf.gz"
+echo $CMD
+eval $CMD
+
+date
+
+# EOF.
+```
+
+>Note: Create the error and output folders before running the script.
+
+To run the script do
+
+```bash
+qsub Combine_vcf.sh
+```
+
+### Genotype the combined gVCF for each scaffold
+
+```Genotype_chrom.sh
+#!/bin/bash
+#$ -V
+#$ -v TMPDIR=/data
+#$ -N Geno_chrom
+#$ -l mem_free=40G
+#$ -S /bin/bash
+#$ -cwd
+#$ -e geno_error
+#$ -o geno_output
+
+mkdir -p genotyped
+
+CMD="/raid1/home/bpp/tabimaj/bin/gatk-4.0.1.2/gatk --java-options '-Xmx40g -Djava.io.tmpdir=/data -XX:ParallelGCThreads=1' GenotypeGVCFs -R /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/P$
+
+echo $CMD
+eval $CMD
+
+# EOF.
+```
+
+>Note: Create the error and output folders before running the script.
+
+To run the script do
+
+```bash
+qsub Genotype_chrom.sh
+```
+
+***
+
+# Part 3: Filtering vcf using vcfR
+
+After the VCF per chromosome is obtained, we need to filter them.
+
+## Parameters
+ - DP (DP > 10)
+ - MQ (MQ > 50)
+ - MAF (MAF > Allele present in two samples)
+ - Per-variant missingness (removes variants with more than 20% missing data)
+
+## Steps
+
+1. Creating a list of chromosomal VCF
+2. Running Filtering.vcf.sh
+
+## Procedure
+
+1. Creating a list of chromosomal VCF
+
+```bash
+cd /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align
+for i in /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/genotyped/*.vcf.gz; do readlink -f $i; done > chrom_vcf.list
+```
+
+2. Running `Filtering_vcf.sh`
+
+> NOTE: Make sure that `Filtering_vcf.sh` and `Filtering_vcf.Rmd` are in the same folder
+
+```bash
+qsub Filtering_vcf.sh
+```

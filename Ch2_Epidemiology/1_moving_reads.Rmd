@@ -1,0 +1,22 @@
+---
+title: "1. Moving Reads"
+author: "Javier F. Tabima & Hazel Daniels"
+date: "11 August 2020"
+output: html_document
+---
+
+# Moving the files from the CGRB sequencing structure to the lab_folder
+
+- **Source:** `/nfs2/hts/illumina/200710_J00107_0244_AHGLLYBBXY_1503/L12`
+- **Destination:** `/nfs1/BPP/LeBoldus_Lab/lab_data/ramorum`
+
+> Notes: Lanes 1 and 2 include the ramorum data
+
+## Script 1: Creating a list of data to be moved 
+
+> Pseudocode: For each of the lane1|lane2 fastq, paste the command (cp), the source and the destination
+
+```bash
+bash
+for i in /nfs2/hts/illumina/190410_J00107_0201_AH3VJGBBXY_1461/L125678/lane[12]*; do a=$(readlink -f $i); b=$(basename $i); printf "cp "$a" ""/nfs1/BPP/LeBoldus_Lab/lab_data/leptographium_reads/"$b"\n"; done > move_files.sh
+```

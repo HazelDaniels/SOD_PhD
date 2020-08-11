@@ -1,0 +1,262 @@
+---
+title: "2. Aligning Reads"
+author: "Javier Tabima & Hazel Daniels"
+date: "11 August 2020"
+output: html_document
+---
+
+## General Steps
+
+1. Creating an index in BWA (More info [here](http://seqanswers.com/forums/showthread.php?t=25553)
+2. Creating a list of the reads and their location
+3. Mapping the reads using BWA, compressing the alignments and sorting them
+4. Alignment statistics
+
+***
+
+## Part 1: Indexing the reference genome
+
+Indexing the genome is a way of simplifying the reference FASTA file so the program can access it rapidly and efficiently. BWA requires an index of the reference genome to map the reads.
+
+What we are going to do is that we are making a symbolic link to the reference genome inside of `LeBoldus_Lab/user_folders/danieldi/` into a folder called `ramorum_align`
+
+### Procedure
+
+1. Creating the forder in the structure
+
+```bash
+cd ~/LeBoldus_Lab/user_folders/danieldi/
+mkdir ramorum_align
+```
+
+2. Create the symbolic link for the reference genome
+
+```bash
+cd ramorum_align
+ln -s ~/dfs/BPP/Grunwald_Lab/home/carleson/genome_assembly/PacBio/ramorum/PR-102_again/8-gene_calling/PR-102.fasta
+```
+
+3. Create the BWA index with qrsh
+
+Qrsh is a way in which we can use a host without the need of sending a script. (i.e. Using the machine on the cluster as if it was your machine), meaning that you can use it for all kinds of scripts with no time limit.
+
+```bash
+qrsh -q fangorn
+cd ~/LeBoldus_Lab/user_folders/danieldi/ramorum_align
+bwa index PR-102.fa
+```
+>Note: In this case, `PR-102.fasta` is already indexed. Step 3 is retained here for those who need to do this important step!
+
+***
+
+## Part 2: Creating a list of the reads and their location
+
+We need to have a file that references the locations of each read per sample. This file will be a **semi-colon (;)** delimitated file, like a CSV file but using semicolons instead of commas.
+
+### Example:
+
+Lets assume we have the following files in the `examples/` folder:
+
+```
+sample1_R1.fastq
+sample1_R2.fastq
+sample2_R1.fastq
+sample2_R2.fastq
+sample3_R1.fastq
+sample3_R2.fastq
+```
+
+What we want is a file like this:
+
+```
+sample_1;examples/sample1_R1.fastq;examples/sample1_R2.fastq
+sample_2;examples/sample2_R1.fastq;examples/sample2_R2.fastq
+sample_3;examples/sample3_R1.fastq;examples/sample3_R2.fastq
+```
+
+### Procedure
+
+1. Go to the project folder
+
+```bash
+bash
+cd /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align
+```
+
+2. Create a script to summarize the data
+
+```bash
+for i in /nfs1/BPP/LeBoldus_Lab/lab_data/ramorum/lane*_R1_*; do a=$(basename $i| cut -f 7,8 -d "-"| cut -f 1 -d "_"); b=$(readlink -f $i); c=$(readlink -f $i| sed 's/R1/R2/g'); printf ${a%%.*}";"$b";"$c"\n"; done > reads.list
+```
+
+> Note:
+The `reads.list` file is at /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align already, no need to copy or move to another directory.
+
+***
+
+## Part 3:  Mapping the reads using BWA, sorting the alignments and re-aligning indels
+
+We have created a general script for this function called `BWA_aligner.sh`.
+
+This script does the following:
+
+1. Reads the `reads.list` we created in part 2 and maps the paired end reads to the reference index we made in part 1. (Step 1: BWA mapping)
+
+2. Fixes the read mates based on mates by pairs of reads to increase accuracy of alignment (Step 2. SAMtools post-processing)
+
+3. Marks duplicates and re-aligns indel positions on PICARD (Step 3. PICARD tools marking duplicates)
+
+### Script
+
+```BWA_aligner.sh
+#!/bin/bash
+#$ -cwd
+#$ -S /bin/bash
+#$ -N BWA_aligner
+#$ -e bam_error
+#$ -o bam_output
+#$ -V
+#$ -t 1-20:1
+
+i=$(expr $SGE_TASK_ID - 1)
+REF="/nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/PR-102.fasta"
+FILE=( `cat /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/reads.list`)
+IFS=';' read -a arr <<< "${FILE[$i]}"
+
+mkdir -p sams
+mkdir -p bams
+
+echo "${arr[1]}"
+
+###
+# Step 1: BWA mapping
+# The GATK needs read group info:
+# https://software.broadinstitute.org/gatk/guide/article?id=6472
+# SM: sample
+# LB: library, may be sequenced multiple times
+# ID: Read Group Identifier, a unique identifier
+# PL: Platform/technology used
+RG="@RG\tID:${arr[0]}\tLB:${arr[0]}\tPL:illumina\tSM:${arr[0]}\tPU:${arr[0]}"
+echo "Mapping reads using BWA"
+echo "#####"
+CMD="/raid1/home/bpp/tabimaj/bin/bwa/bwa mem -M -R \"$RG\" $REF ${arr[1]} ${arr[2]} > sams/${arr[0]}.sam"
+echo $CMD
+eval $CMD
+echo -n "BWA finished at "
+date
+#
+###
+
+###
+# Step 2. SAMtools post-processing
+echo "SAMtools: Fixing mates"
+echo "#####"
+CMD="samtools view -bSu sams/${arr[0]}.sam | samtools sort -n -O bam -o bams/${arr[0]}_nsort -T bams/${arr[0]}_nsort_tmp"
+echo $CMD
+eval $CMD
+CMD="samtools fixmate -O bam bams/${arr[0]}_nsort /dev/stdout | samtools sort -O bam -o bams/${arr[0]}_csort.bam"
+echo $CMD
+eval $CMD
+CMD="samtools calmd -b bams/${arr[0]}_csort.bam $REF > bams/${arr[0]}_fixed.bam"
+echo $CMD
+eval $CMD
+echo -n "SAMtools step 1 finished at "
+date
+#
+###
+
+###
+# Step 3. PICARD tools marking duplicates
+echo "PICARD: Marking duplicates"
+echo "#####"
+CMD="/raid1/home/bpp/tabimaj/bin/jre1.8.0_144/bin/java -Xmx4g -Djava.io.tmpdir=/data -jar /raid1/home/bpp/tabimaj/bin/picard.jar MarkDuplicates I=bams/${arr[0]}_fixed.bam O=bams/${arr[0]}_dupmrk.bam M$
+echo $CMD
+eval $CMD
+CMD="samtools index bams/${arr[0]}_dupmrk.bam"
+echo $CMD
+eval $CMD
+echo -n "PICARD: Marking duplicates finished at "
+date
+
+echo "Indel Realigner"
+CMD="/raid1/home/bpp/tabimaj/bin/jre1.8.0_144/bin/java -Xmx4g -Djava.io.tmpdir=/data -jar /raid1/home/bpp/tabimaj/bin/GenomeAnalysisTK.jar -T RealignerTargetCreator -R $REF -I bams/${arr[0]}_dupmrk.ba$
+echo $CMD
+eval $CMD
+CMD="/raid1/home/bpp/tabimaj/bin/jre1.8.0_144/bin/java -Xmx4g -Djava.io.tmpdir=/data -jar /raid1/home/bpp/tabimaj/bin/GenomeAnalysisTK.jar -T IndelRealigner -R $REF -I bams/${arr[0]}_dupmrk.bam -targe$
+echo $CMD
+eval $CMD
+###
+```
+>Note: Make sure to create the /bam_error/ and /bam_output/ folders before running the script!
+
+>Note: The `BWA_aligner.sh` script as written above may only be able to run 20 samples at a time. We ran into possible memory issues when running more than 20 samples at once with a previous version of this script. If you try to process more than 20 samples and find your script fails to execute, reduce sample number to 20 and try again.
+
+### Procedure
+
+After copying the script to the directory of interest, run:
+
+```bash
+qsub BWA_aligner.sh
+```
+
+***
+
+# Part 4: Alignment statistics on SAM files
+
+We need to create statistics for the alignments. To do so we need to use the `samtools flagstat` program. We are using the SAM files because it will give us the original number of reads mapped to the reference. It takes 3 steps:
+
+1. Creating the list of sams
+2. Running `samtools flagstat` for all SAM files
+3. Summary of results
+
+## Procedure
+
+1. Creating the list of sams
+
+```bash
+cd /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/
+bash
+for i in sams/*; do a=$(basename $i); b=$(readlink -f $i); printf ${a%%.*}";"$b"\n"; done > sams.list
+```
+
+2. `stats_sam.sh` - Script to run `samtools flagstat`
+
+### Script
+
+```stats_sam.sh
+#!/bin/bash
+#$ -cwd
+#$ -S /bin/bash
+#$ -N stats_sam
+#$ -e sam_error
+#$ -o sam_output
+#$ -V
+#$ -t 1-60:1
+
+i=$(expr $SGE_TASK_ID - 1)
+FILE=( `cat /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/sams.list`)
+IFS=';' read -a arr <<< "${FILE[$i]}"
+
+mkdir -p align_stats
+
+samtools flagstat ${arr[1]} > align_stats/${arr[0]}
+```
+
+>Note: Create the error and output folders before running the script.
+
+Running the script:
+
+```bash
+qsub stats_sam.sh
+```
+
+3.  Summary of results
+
+To do the summary of results use this one-liner:
+
+```bash
+cd /home/bpp/tabimaj/LeBoldus_Lab/user_folders/danieldi/ramorum_align/align_stats
+for i in *; do a=$( grep "properly" $i); printf '%s ' $i"\t"$a"\n"; done | perl -pe 's/\\n/\n/g' | perl -pe 's/\\t/\t/g' > mapping_percentage.txt
+```
+
+Then, that `mapping_percentage.txt` file can be used in R or whatever other program to summarize the data
