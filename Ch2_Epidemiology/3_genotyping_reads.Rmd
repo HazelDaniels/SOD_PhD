@@ -195,8 +195,4 @@ for i in /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/genotyped/*.
 
 2. Running `Filtering_vcf.sh`
 
-> NOTE: Make sure that `Filtering_vcf.sh` and `Filtering_vcf.Rmd` are in the same folder
-
-```bash
-qsub Filtering_vcf.sh
-```
+> NOTE: Make sure that `Filtering_vcf.sh` and `Filtering_vcf.Rmd` are in the same folder on your personal computer! Filtering will be done interactively in R, not in the shell.
