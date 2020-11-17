@@ -18,7 +18,7 @@ output: html_document
 
 ```bash
 bash
-for i in /nfs2/hts/illumina/190410_J00107_0201_AH3VJGBBXY_1461/L125678/lane[12]/*; do a=$(readlink -f $i); b=$(basename $i); printf "cp "$a" ""/nfs1/BPP/LeBoldus_Lab/lab_data/ramorum/"$b"\n"; done > move_files.sh
+for i in /nfs2/hts/illumina/190410_J00107_0201_AH3VJGBBXY_1461/L125678/lane[12]*; do a=$(readlink -f $i); b=$(basename $i); printf "cp "$a" ""/nfs1/BPP/LeBoldus_Lab/lab_data/ramorum/"$b"\n"; done > move_files.sh
 ```
 
 ## Step 2: Running the script to copy the files from source to destination
