@@ -101,7 +101,7 @@ After the gVCF files are done, we need to combine them into a single VCF file.
 ### Creating a list of gVCF
 
 ```bash
-for i in /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/gVCF/*; do readlink -f $i; done > gvcf.list
+for i in /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/gVCF/*.gz; do readlink -f $i; done > gvcf.list
 ```
 
 
