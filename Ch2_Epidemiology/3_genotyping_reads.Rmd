@@ -32,7 +32,7 @@ for i in /nfs1/BPP/LeBoldus_Lab/user_folders/danieldi/ramorum_align/bams/*_dupmr
 
 ### Creating the index files (.dict and .fai).
 
-Dor more info go [here](https://gatkforums.broadinstitute.org/gatk/discussion/1601/how-can-i-prepare-a-fasta-file-to-use-as-reference)
+For more info go [here](https://gatkforums.broadinstitute.org/gatk/discussion/1601/how-can-i-prepare-a-fasta-file-to-use-as-reference)
 
 ```bash
 # PICARD index

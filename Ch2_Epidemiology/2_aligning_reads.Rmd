@@ -33,7 +33,7 @@ mkdir ramorum_align
 
 ```bash
 cd ramorum_align
-ln -s ~/dfs/BPP/Grunwald_Lab/home/carleson/genome_assembly/PacBio/ramorum/PR-102_again/8-gene_calling/PR-102.fasta
+ln -s ~/dfs/Grunwald_Lab/home/carleson/genome_assembly/PacBio/ramorum/PR-102_again/8-gene_calling/PR-102.fasta
 ```
 
 3. Create the BWA index with qrsh

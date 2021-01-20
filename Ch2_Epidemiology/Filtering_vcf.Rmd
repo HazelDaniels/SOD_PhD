@@ -3,7 +3,7 @@
 ```{r}
 library(vcfR)
 library(tidyverse)
-vcf <- read.vcfR("ramorum.vcf.gz")
+vcf <- read.vcfR("C:/Users/hazel/Downloads/ramorumNA1.vcf.gz")
 raw.vcf <- nrow(vcf)
 ```
 
@@ -15,12 +15,15 @@ poly.vcf <- nrow(vcf)
 vcf <- vcf[is.biallelic(vcf)]
 biallelic.vcf <- nrow(vcf)
 ```
+# NA1
+# 447,886 Polymorphic sites
+# 432,358 Biallelic sites
 
-246, 241 (down from 277,225) Polymorphic sites
-238, 188 (down from 271,578) Biallelic sites
+# EU1
+# 246, 241 (down from 277,225) Polymorphic sites
+# 238, 188 (down from 271,578) Biallelic sites
 
 # Filtering by DP:
-
 ```{R}
 dp.vc <- extract.gt(vcf, element = "DP", as.numeric = T)
 gt.vc <- extract.gt(vcf, element = "GT", as.numeric = T)
@@ -30,7 +33,6 @@ gt.vc.bk <- gt.vc
 ```
 
 ## Filtering by DP (DP (10x < x > 95%))
-
 ```{r}
 ## Creating quantiles based in the lower 5% and the higher 95%
 sums <- apply(dp.vc.bk, 2, function (x) quantile(x, probs=c(0.05, 0.50, 0.95), na.rm = T))
@@ -45,7 +47,6 @@ vcf@gt[,-1][is.na(dp.vc)] <- NA
 ```
 
 # Filtering by maximum MQ (MQ == 50)
-
 ```{r}
 mq <- extract.info(vcf, element = "MQ", as.numeric = T)
 ## Creating mask
@@ -57,7 +58,6 @@ mask.mq[mq < 50] <- F
 Regions removed by MQ: `r  biallelic.vcf - sum(mask.mq)`
 
 # Filtering on MAF (minor allele freq)
-
 ```{r}
 maf.tresh <- 2/(ncol(vcf@gt[,-1]))
 cat("MAF threshold:", maf.tresh, "\n")
@@ -72,7 +72,6 @@ mask.maf <- apply(gt.vc, 1, function (x) min(table(x)))/ncol(vcf@gt) >= maf.tres
 Regions removed by MAF: `r biallelic.vcf - sum(mask.maf)`
 
 # Filtering by missing data:
-
 ```{r}
 mask.miss <- rep(T, nrow(vcf))
 gt.vc <- extract.gt(vcf, element = "GT", as.numeric = T)
@@ -82,9 +81,7 @@ mask.miss <- apply(gt.vc, 1, function (x) sum(is.na(x))/ncol(gt.vc)) <= 0.00
 Regions removed by MAF: `r biallelic.vcf - sum(mask.miss)`
 
 ## Missing DP per sample (Missing more than 20% data)
-
 Why 20% data? Because is the maximum percentage of missing data to filter in order to keep most data.
-
 ```{r}
 h <- apply(dp.vc, 2, function (x) is.na(x) %>% sum/nrow(dp.vc)) %>% hist()
 h$density = h$counts/sum(h$counts)*100
