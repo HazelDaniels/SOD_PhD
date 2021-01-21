@@ -104,7 +104,7 @@ summary(LRVeg_NA1)
 ```
 
 ## Interpretation
-For a given NA1 site, any treatment changes the log odds of there being positive vegetation by -7.99.
+For a given NA1 site, any treatment changes the log odds of there being positive vegetation by -1.99.
 
 Intercept = 1 (as in, yes there's pos veg on plot), it looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). 
 
