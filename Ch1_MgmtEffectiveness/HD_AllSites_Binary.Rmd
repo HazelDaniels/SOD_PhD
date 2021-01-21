@@ -12,15 +12,19 @@ library(tidyr)
 library(tibble)
 library(ggplot2)
 library(vegan)
+library(ape)
+library(dplyr)
 
-AllSites <- read_xlsx("BasicData.xlsx", 1)
-head(AllSites)
-AllSites <- column_to_rownames(AllSites, var = "New Site")
-AllSites$VegBin <- as.numeric(as.character(AllSites$VegBin))
-AllSites$SoilBin <- as.numeric(as.character(AllSites$SoilBin))
-AllSites$TrtBin <- as.numeric(as.character(AllSites$TrtBin))
-AllSites$Wildfire <- as.numeric(as.character(AllSites$WFBin))
-head(AllSites)
+SODSites <- read_xlsx("BasicData.xlsx", 1)
+head(SODSites)
+SODSites <- column_to_rownames(SODSites, var = "New Site")
+SODSites$VegBin <- as.numeric(as.character(SODSites$VegBin))
+SODSites$SoilBin <- as.numeric(as.character(SODSites$SoilBin))
+SODSites$TrtBin <- as.numeric(as.character(SODSites$TrtBin))
+SODSites$WFBin <- as.numeric(as.character(SODSites$WFBin))
+head(SODSites)
+AllSites <- subset(SODSites, SODSites$Lineage != "U")
+
 
 AllSeeds <- read_xlsx("BasicData.xlsx", 2)
 head(AllSeeds)
@@ -364,13 +368,96 @@ summary(anova.sburn)
 ```
 
 #Ordination of seedling data
+##PCA and PCOA
 ```{r}
-ord <- metaMDS(AllSeeds)
-plot(ord)
+PCASeeds <- AllSeeds[5:36]
 
-AllSeedf <- AllSeeds
-AllSeedf$TrtBin <- as.factor(as.numeric(AllSeeds$TrtBin))
+#PCA
+PCASeeds %>%
+  metaMDS(trace = F) %>%
+  ordiplot(type = "none") %>%
+  text("species")
 
-#ord.fit <- envfit(ord ~ TrtBin, data=AllSeeds)
-#ord.fit
+PCAS <- rda(PCASeeds, scale = FALSE)
+barplot(as.vector(PCAS$CA$eig)/sum(PCAS$CA$eig))
+sum((as.vector(PCAS$CA$eig)/sum(PCAS$CA$eig))[1:2])
+
+plot(PCAS)
+#plot(PCAS, display = "sites", type = "points")
+#plot(PCAS, display = "species", type = "text")
+
+#PCOA
+sitePCAS <- PCAS$CA$u
+speciesPCAS <- PCAS$CA$v
+
+biplot(PCAS, choices = c(1,2), type = c("text", "points"), xlim = c(-5,10))
+biplot(PCAS, choices = c(1,3), type = c("text","points"))
+
+DistSeed <- vegdist(PCASeeds, method = "bray")
+PCOAS <- pcoa(DistSeed)
+barplot(PCOAS$values$Relative_eig[1:10])
+biplot.pcoa(PCOAS, PCASeeds)
+
+axesPCAS <- PCOAS$vectors[,c(1,2)]
+
+par(mfrow = c(1, 2)) 
+biplot.pcoa(PCOAS)
+plot(PCAS)
+par(mfrow = c(1, 1)) 
+```
+
+##NMDS
+```{r}
+NMDS.scree <- function(x) { #where x is the name of the data frame variable
+  plot(rep(1, 10), replicate(10, metaMDS(x, autotransform = F, k = 1)$stress), xlim = c(1, 10),ylim = c(0, 0.30), xlab = "# of Dimensions", ylab = "Stress", main = "NMDS stress plot")
+  for (i in 1:10) {
+    points(rep(i + 1,10),replicate(10, metaMDS(x, autotransform = F, k = i + 1)$stress))
+  }
+}
+
+NMDS.scree(DistSeed)
+
+NMDS1 <- metaMDS(DistSeed, k = 3, trymax = 100, trace = F)
+NMDS1
+
+Stress <- stressplot(NMDS1)
+Stressplot <- plot(NMDS1, type = "t")
+
+NMDS2 <- metaMDS(PCASeeds, k = 3, trymax = 100, trace = F)
+NMDS2
+
+NMDS3 <- metaMDS(PCASeeds, k = 3, trymax = 100, trace = F, autotransform = FALSE, distance="bray")
+NMDS3plot <- plot(NMDS3)
+NMDS3plotsp <- plot(NMDS3, display = "species")
+```
+
+##Interpretation (including effects variables)
+```{r}
+#Interpretation
+EFSites <- select(SODSites, 3, 8:11, 19, 23, 26)
+
+ef <- envfit(NMDS3, EFSites, permutations = 999, na.rm = TRUE)
+ef
+
+efplot <- plot(NMDS3, type = "t", display = "species")
+efplot2 <- plot(ef, p.max = 0.05)
+efplot2
+```
+
+##Interpretation by treatment
+```{r}
+group = c(rep("Untreated", 56), rep("Treated", 44))
+colors = c(rep("red", 56), rep("blue", 44))
+
+ordiplot(NMDS3, type = "n")
+for(i in unique(group)) {
+  ordihull(NMDS3$point[grep(i, group),], draw="polygon",
+   groups = group[group == i],col = colors[grep(i,group)],label=F) }
+
+orditorp(NMDS3, display = "species", col = "red", air = 0.01)
+#orditorp(NMDS3, display = "sites", col = c(rep("red",12),
+#  rep("blue", 12)), air = 0.01, cex = 1.25)
+
+
+
 ```
