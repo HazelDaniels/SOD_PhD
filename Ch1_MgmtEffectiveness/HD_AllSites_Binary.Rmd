@@ -2,7 +2,10 @@
 title: "Eradication Effectiveness Binary"
 author: "Hazel Daniels"
 date: "15 Jan 2021"
-output: html_document
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -24,6 +27,7 @@ SODSites$TrtBin <- as.numeric(as.character(SODSites$TrtBin))
 SODSites$WFBin <- as.numeric(as.character(SODSites$WFBin))
 head(SODSites)
 AllSites <- subset(SODSites, SODSites$Lineage != "U")
+SODSite.ord <- SODSites[-c(31),,drop=F] #removing HD-4331 as it skews results strongly
 
 
 AllSeeds <- read_xlsx("BasicData.xlsx", 2)
@@ -31,12 +35,20 @@ head(AllSeeds)
 AllSeeds <- column_to_rownames(AllSeeds, var = "New Site")
 has_rownames(AllSeeds)
 head(AllSeeds)
+AllSeeds <- AllSeeds[-11] #removing CE as it skews results strongly
+AllSeeds <- AllSeeds[-c(31),,drop=F] #removing HD-4331 as it skews results strongly
 
 AllTO <- read_xlsx("BasicData.xlsx", 3)
 head(AllTO)
 AllTO <- column_to_rownames(AllTO, var = "New_Site")
-has_rownames(AllSeeds)
+has_rownames(AllTO)
 head(AllTO)
+
+AllFire <- read_xlsx("BasicData.xlsx", 4)
+head(AllFire)
+AllFire <- column_to_rownames(AllFire, var = "New Site")
+has_rownames(AllFire)
+head(AllFire)
 ```
 
 #Visualizing raw site data
@@ -66,7 +78,7 @@ ggplot(AllSites, aes(x=x)) +
 #Fitting a binomial model
 veg_null = glm(VegBin~1, family = binomial, data=AllSites)
 veg_full = glm(VegBin~Lineage * WFBin * TrtBin * SoilBin, family=binomial, data=AllSites)
-step(veg_null, scope = list(upper=veg_full), direction="both", test="Chisq", data=AllSItess)
+step(veg_null, scope = list(upper=veg_full), direction="both", test="Chisq", data=AllSites)
 #VegBin ~ TrtBin + SoilBin
 
 #Is positive veg predicted by treatment and positive soil? (model from stepwise fit)
@@ -346,68 +358,52 @@ summary(LRS_TOEU1)
 ## Interpretation
 Stumps = treatment, so this reinforces previous conclusions.
 
-#Are current treatments effectively reducing P. ramorum infections in soil and vegetation?
+# Are current treatments effectively reducing P. ramorum infections in soil and vegetation?
 ```{r}
-anova.vtrt <- aov(VegBin~TrtBin, data=AllSites)
-summary(anova.vtrt)
+#Setting up data
+Veg <- AllSites %>% select(9, 19)
 
-anova.strt <- aov(SoilBin~TrtBin, data=AllSites)
-summary(anova.strt)
+VegTable <- table(Veg$TrtBin, Veg$VegBin)
 
-anova.sveg <- aov(SoilBin~VegBin, data=AllSites)
-summary(anova.sveg)
+chisq.test(VegTable)$expected
+Veg.f <- fisher.test(VegTable)
+Veg.f
+
+Soil <- AllSites %>% select(9, 23)
+
+SoilTable <- table(Soil$TrtBin, Soil$SoilBin)
+
+chisq.test(SoilTable)$expected
+Soil.f <- fisher.test(SoilTable)
+Soil.f
+
+#For Veg only: We reject the null hypothesis that there is no significant relationship between the two variables (treatment and positive vegetation) using Fisher's exact test.
+
+
+#For Soil only: We accept the null hypothesis that there is no significant relationship between the two variables (treatment and positive soil) using Fisher's exact test.
 ```
 
-#Is wildfire better than current treatments at removing P. ramorum from sites?
+# Is wildfire better than current treatments at removing P. ramorum from sites?
 ```{r}
-anova.vburn <- aov(VegBin~WFBin * TrtBin, data=AllSites)
-summary(anova.vburn)
+#Veg
+Firev_full = glm(VegBin~WFBin * TrtBin, family=binomial, data=AllFire)
+summary(Firev_full)
 
-anova.sburn <- aov(SoilBin~WFBin* TrtBin, data=AllSites)
-summary(anova.sburn)
+1-pchisq(137.19-114.40, 99-96)
+
+#Soil
+Fires_full = glm(SoilBin~WFBin * TrtBin, family=binomial, data=AllFire)
+summary(Fires_full)
+
+1-pchisq(102.791-94.585, 99-96)
 ```
 
-#Ordination of seedling data
-##PCA and PCOA
+# Ordination of seedling data
+## NMDS
 ```{r}
-PCASeeds <- AllSeeds[5:36]
-
-#PCA
-PCASeeds %>%
-  metaMDS(trace = F) %>%
-  ordiplot(type = "none") %>%
-  text("species")
-
-PCAS <- rda(PCASeeds, scale = FALSE)
-barplot(as.vector(PCAS$CA$eig)/sum(PCAS$CA$eig))
-sum((as.vector(PCAS$CA$eig)/sum(PCAS$CA$eig))[1:2])
-
-plot(PCAS)
-#plot(PCAS, display = "sites", type = "points")
-#plot(PCAS, display = "species", type = "text")
-
-#PCOA
-sitePCAS <- PCAS$CA$u
-speciesPCAS <- PCAS$CA$v
-
-biplot(PCAS, choices = c(1,2), type = c("text", "points"), xlim = c(-5,10))
-biplot(PCAS, choices = c(1,3), type = c("text","points"))
-
+PCASeeds <- AllSeeds[5:35]
 DistSeed <- vegdist(PCASeeds, method = "bray")
-PCOAS <- pcoa(DistSeed)
-barplot(PCOAS$values$Relative_eig[1:10])
-biplot.pcoa(PCOAS, PCASeeds)
 
-axesPCAS <- PCOAS$vectors[,c(1,2)]
-
-par(mfrow = c(1, 2)) 
-biplot.pcoa(PCOAS)
-plot(PCAS)
-par(mfrow = c(1, 1)) 
-```
-
-##NMDS
-```{r}
 NMDS.scree <- function(x) { #where x is the name of the data frame variable
   plot(rep(1, 10), replicate(10, metaMDS(x, autotransform = F, k = 1)$stress), xlim = c(1, 10),ylim = c(0, 0.30), xlab = "# of Dimensions", ylab = "Stress", main = "NMDS stress plot")
   for (i in 1:10) {
@@ -415,26 +411,31 @@ NMDS.scree <- function(x) { #where x is the name of the data frame variable
   }
 }
 
+#NMDS.scrree(DistSeed) chunk excluded to save space
+```
+
+```{r, include=FALSE}
 NMDS.scree(DistSeed)
+```
 
-NMDS1 <- metaMDS(DistSeed, k = 3, trymax = 100, trace = F)
+```{r}
+NMDS1 <- metaMDS(DistSeed, k = 2, trymax = 100, trace = F)
 NMDS1
-
 Stress <- stressplot(NMDS1)
 Stressplot <- plot(NMDS1, type = "t")
 
-NMDS2 <- metaMDS(PCASeeds, k = 3, trymax = 100, trace = F)
+NMDS2 <- metaMDS(PCASeeds, k = 2, trymax = 100, trace = F)
 NMDS2
 
-NMDS3 <- metaMDS(PCASeeds, k = 3, trymax = 100, trace = F, autotransform = FALSE, distance="bray")
+NMDS3 <- metaMDS(PCASeeds, k = 2, trymax = 100, trace = F, autotransform = FALSE, distance="bray")
 NMDS3plot <- plot(NMDS3)
 NMDS3plotsp <- plot(NMDS3, display = "species")
 ```
 
-##Interpretation (including effects variables)
+## Interpretation (including effects variables)
 ```{r}
 #Interpretation
-EFSites <- select(SODSites, 3, 8:11, 19, 23, 26)
+EFSites <- select(SODSite.ord, 3, 8:11, 19, 23, 26)
 
 ef <- envfit(NMDS3, EFSites, permutations = 999, na.rm = TRUE)
 ef
@@ -444,20 +445,17 @@ efplot2 <- plot(ef, p.max = 0.05)
 efplot2
 ```
 
-##Interpretation by treatment
+## Interpretation by treatment
 ```{r}
-group = c(rep("Untreated", 56), rep("Treated", 44))
-colors = c(rep("red", 56), rep("blue", 44))
+group = c(rep("Untreated", 56), rep("Treated", 43))
+colors = c(rep("red", 56), rep("blue", 43))
 
 ordiplot(NMDS3, type = "n")
 for(i in unique(group)) {
   ordihull(NMDS3$point[grep(i, group),], draw="polygon",
-   groups = group[group == i],col = colors[grep(i,group)],label=F) }
+  groups = group[group == i],col = colors[grep(i,group)],label=F) }
 
 orditorp(NMDS3, display = "species", col = "red", air = 0.01)
 #orditorp(NMDS3, display = "sites", col = c(rep("red",12),
 #  rep("blue", 12)), air = 0.01, cex = 1.25)
-
-
-
 ```
