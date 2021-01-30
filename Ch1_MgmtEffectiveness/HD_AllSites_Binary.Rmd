@@ -17,6 +17,8 @@ library(ggplot2)
 library(vegan)
 library(ape)
 library(dplyr)
+library(viridis)
+library(jtools)
 
 SODSites <- read_xlsx("BasicData.xlsx", 1)
 head(SODSites)
@@ -53,11 +55,11 @@ head(AllFire)
 
 #Visualizing raw site data
 ```{r}
-ggplot(AllSites, aes(x=x) ) +
+ggplot(AllSites, aes(x=x)) +
   geom_histogram( aes(x = VegBin, y = stat(count))) +
-  scale_x_continuous(name = "Was P.ramorum found in residual veg sample?", breaks = seq(0, 1)) +
+  scale_x_continuous(name = "Was P.ramorum found in residual Veg sample?", breaks = seq(0, 1)) +
   facet_grid(Lineage ~ TrtBin) +
-  labs(title = "Vegetation") +
+  labs(title = "Veg") +
   theme_bw()
 
 ggplot(AllSites, aes(x=x)) +
@@ -66,6 +68,25 @@ ggplot(AllSites, aes(x=x)) +
   facet_grid(Lineage ~ TrtBin) +
   labs(title = "Soil") +
   theme_bw()
+
+Trt <- c(rep("Untreated", 4), rep("Treated", 4))
+Lin <- c("EU1","EU1","NA1","NA1","EU1","EU1","NA1","NA1")
+Tis <- c("Vegetation","Soil","Vegetation","Soil","Vegetation","Soil","Vegetation","Soil")
+Count <- c(18,8,18,3,8,5,12,5)
+df <- data.frame(Trt,Lin,Tis,Count)
+df
+
+ggplot(df,aes(x=Tis,y=Count,fill=Lin))+
+  geom_bar(stat="identity",position="dodge")+
+  scale_fill_discrete(name="Lineage",labels=c("EU1", "NA1"))+
+  scale_fill_viridis_d() +
+  theme_classic()+
+  theme(legend.position="none", text = element_text(size=15))+
+  xlab("Source material tested positive for P. ramorum")+
+  ylab("Count")+
+  ylim(0, 20)+
+  geom_text(aes(label = Count), vjust = -0.5)+
+  facet_grid(Lin~Trt)
 
 #Raw vegetation data seems to show that, for untreated sites (0 column) many were positive for P.ramorum (both NA1 and EU1). For treated sites (1 column) fewer sites tested positive than negative.
 
@@ -77,26 +98,30 @@ ggplot(AllSites, aes(x=x)) +
 ```{r}
 #Fitting a binomial model
 veg_null = glm(VegBin~1, family = binomial, data=AllSites)
-veg_full = glm(VegBin~Lineage * WFBin * TrtBin * SoilBin, family=binomial, data=AllSites)
+veg_full = glm(VegBin~Lineage * WFBin * TrtBin * SoilBin * YrSinceTrt, family=binomial, data=AllSites)
 step(veg_null, scope = list(upper=veg_full), direction="both", test="Chisq", data=AllSites)
-#VegBin ~ TrtBin + SoilBin
+#VegBin ~ TrtBin + SoilBin + YrSinceTrt + SoilBin:YrSinceTrt
 
 #Is positive veg predicted by treatment and positive soil? (model from stepwise fit)
-LRVeg_Gen <- glm(VegBin ~ TrtBin + SoilBin, family=binomial, data=AllSites)
+LRVeg_Gen <- glm(VegBin ~ TrtBin + SoilBin + YrSinceTrt + SoilBin:YrSinceTrt, family=binomial, data=AllSites)
 summary(LRVeg_Gen)
+summ(LRVeg_Gen)
 
-1-pchisq(133.85-100.88, 97-95)
+1-pchisq(133.85-95.882, 97-93)
+```
+
+```{r, results='asis'}
+export_summs(LRVeg_Gen, veg_null)
 ```
 
 ## Interpretation
-For a given site, any treatment changes the log odds of there being positive vegetation by -2.05.
-For a given site, SOD being found in soil changes the log odds of there being SOD-positive vegetation by 2.56.
+For a given site, any treatment changes the log odds of there being positive vegetation by -2.92.
 
 Intercept = 1 (pos veg on plot). It looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). 
 
 It is plausible that the data emanate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant. Given a 1 unit increase in TrtBin, we expect a loss of 2 in VegBin (e.g. when Treatment is applied, we expect positive veg to decrease from "present" to "not present").
 
-chi square 0.00000006928759
+chi square 0.0000001137722
 
 ## NA1
 ```{r}
@@ -104,25 +129,29 @@ chi square 0.00000006928759
 NA1Sites <- subset(AllSites, AllSites$Lineage == "NA1")
 
 NAV_null = glm(VegBin~1, family = binomial, data=NA1Sites)
-NAV_full = glm(VegBin~WFBin * TrtBin * SoilBin, family=binomial, data=NA1Sites)
+NAV_full = glm(VegBin~WFBin * TrtBin * SoilBin * YrSinceTrt, family=binomial, data=NA1Sites)
 step(NAV_null, scope = list(upper=NAV_full), direction="both", test="Chisq", data=NA1Sites)
-#VegBin ~ SoilBin + TrtBin
+#VegBin ~ SoilBin + TrtBin + YrSinceTrt
 
 #Is NA1 Positive veg predicted by treatment and positive soil? (model from stepwise fit)
-LRVeg_NA1 <- glm(VegBin~SoilBin + TrtBin, family=binomial, data=NA1Sites)
+LRVeg_NA1 <- glm(VegBin ~ SoilBin + TrtBin + YrSinceTrt, family=binomial, data=NA1Sites)
 summary(LRVeg_NA1)
+summ(LRVeg_NA1, exp = TRUE)
 
-1-pchisq(70.852-51.468, 51-49)
+1-pchisq(70.852-49.223, 51-48)
 ```
 
+```{r, results='asis'}
+export_summs(LRVeg_NA1, NAV_null, scale = TRUE)
+```
 ## Interpretation
-For a given NA1 site, any treatment changes the log odds of there being positive vegetation by -1.99.
+For a given NA1 site, any treatment changes the log odds of there being positive vegetation by -3.11.
 
 Intercept = 1 (as in, yes there's pos veg on plot), it looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). 
 
 It is plausible that the data emanate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
 
-chi square 0.00006177573
+chi square 0.0000779153
 
 ## EU1
 ```{r}
@@ -130,41 +159,50 @@ chi square 0.00006177573
 EU1Sites <- subset(AllSites, AllSites$Lineage == "EU1")
 
 EUV_null = glm(VegBin~1, family = binomial, data=EU1Sites)
-EUV_full = glm(VegBin~WFBin * TrtBin * SoilBin, family=binomial, data=EU1Sites)
+EUV_full = glm(VegBin~WFBin * TrtBin * SoilBin * YrSinceTrt, family=binomial, data=EU1Sites)
 step(EUV_null, scope = list(upper=EUV_full), direction="both", test="Chisq", data=EU1Sites)
-#VegBin ~ SoilBin + TrtBin
+#VegBin ~ TrtBin + SoilBin
 
 #Is EU1 Positive veg predicted by treatment and positive soil? (model from stepwise fit)
-LRVeg_EU1 <- glm(VegBin~SoilBin * TrtBin, family=binomial, data=EU1Sites)
+LRVeg_EU1 <- glm(VegBin ~ TrtBin + SoilBin, family=binomial, data=EU1Sites)
 summary(LRVeg_EU1)
+summ(LRVeg_EU1, exp = TRUE)
 
-1-pchisq(62.985-45.137, 45-42)
+1-pchisq(62.985-46.436, 45-43)
+```
+
+```{r, results='asis'}
+export_summs(LRVeg_EU1, EUV_null, scale = TRUE)
 ```
 
 ## Interpretation
-For a given EU1 site, any treatment changes the log odds of there being positive vegetation by -2.6.
+For a given EU1 site, any treatment changes the log odds of there being positive vegetation by -2.2. The presence of positive soil changes the log odds of there being positive vegetation by 1.89.
 
 Intercept = 1 (as in, yes there's pos veg on plot), it looks like there's a significant predictive quality for whether a site has been treated as to whether there is positive veg. In other words, a treated site has a negative association with positive veg (is less likely to have positive veg than an untreated site). 
 
 It is plausible that the data emanate from a logistic model that includes these variables. We can reject the null hypothesis that the deviance of the model with these variables is the same as the deviance of the model with only the constant.
 
-chi square 0.0004727664
+chi square 0.0002549355
 
 # Binomial Soil
 ## Generally
 ```{r}
 soil_null = glm(SoilBin~1, family = binomial, data=AllSites)
-soil_full = glm(SoilBin~WFBin * Lineage * TrtBin * VegBin, family=binomial, data=AllSites)
-step(soil_null, scope = list(upper=soil_full), direction="both", test="Chisq", data=AllSItess)
+soil_full = glm(SoilBin~WFBin * Lineage * TrtBin * VegBin * YrSinceTrt, family=binomial, data=AllSites)
+step(soil_null, scope = list(upper=soil_full), direction="both", test="Chisq", data=AllSites)
 #SoilBin ~ VegBin + Lineage + WFBin + VegBin:Lineage
 
 #Is positive soil predicted by positive veg, lineage, wildfire? (model from stepwise fit)
 LRSoil_Gen <- glm(SoilBin ~ VegBin + Lineage + WFBin + VegBin:Lineage, family=binomial, data=AllSites)
 summary(LRSoil_Gen)
+summ(LRSoil_Gen, exp = TRUE)
 
 1-pchisq(101.838-80.179, 97-93)
 ```
 
+```{r, results='asis'}
+export_summs(LRSoil_Gen, soil_null, scale = TRUE)
+```
 ## Interpretation
 For a given site, the presence of positive vegetation changes the log odds of there being positive soil by 1.89.
 
@@ -177,17 +215,21 @@ chi square 0.0002343011
 ## NA1
 ```{r}
 NAS_null = glm(SoilBin~1, family = binomial, data=NA1Sites)
-NAS_full = glm(SoilBin~WFBin * TrtBin * VegBin, family=binomial, data=NA1Sites)
+NAS_full = glm(SoilBin~WFBin * TrtBin * VegBin * YrSinceTrt, family=binomial, data=NA1Sites)
 step(NAS_null, scope = list(upper=NAS_full), direction="both", test="Chisq", data=NA1Sites)
 #SoilBin ~ VegBin + WFBin
 
 #Is NA1 Positive soil predicted by positive veg and wildfire? (model from stepwise fit)
 LRSoil_NA1 <- glm(SoilBin ~ VegBin + WFBin, family=binomial, data=NA1Sites)
 summary(LRSoil_NA1)
+summ(LRSoil_NA1, exp = TRUE)
 
 1-pchisq(44.650-31.75, 51-49)
 ```
 
+```{r, results='asis'}
+export_summs(LRSoil_NA1, NAS_null, scale = TRUE)
+```
 ## Interpretation
 For a given NA1 site, there are no factors with a predictive quality, but at the same time, the model selected is the most appropriate one.
 
@@ -198,17 +240,21 @@ chi square 0.001580522
 ## EU1
 ```{r}
 EUS_null = glm(SoilBin~1, family = binomial, data=EU1Sites)
-EUS_full = glm(SoilBin~WFBin * TrtBin * VegBin, family=binomial, data=EU1Sites)
+EUS_full = glm(SoilBin~WFBin * TrtBin * VegBin * YrSinceTrt, family=binomial, data=EU1Sites)
 step(EUS_null, scope = list(upper=EUS_full), direction="both", test="Chisq", data=EU1Sites)
 #SoilBin ~ VegBin
 
 #Is EU1 Positive soil predicted by positive veg? (model from stepwise fit)
 LRSoil_EU1 <- glm(SoilBin ~ VegBin, family=binomial, data=EU1Sites)
 summary(LRSoil_EU1)
+summ(LRSoil_EU1, exp = TRUE)
 
 1-pchisq(54.777-48.429, 45-44)
 ```
 
+```{r, results='asis'}
+export_summs(LRSoil_EU1, EUS_null, scale = TRUE)
+```
 ## Interpretation
 For a given EU1 site, the presence of positive vegetation changes the log odds of there being positive soil by 1.89.
 
@@ -238,6 +284,7 @@ summary(LRVeg_tNA1)
 #EU1
 LRVeg_tEU1 = glm(VegBin~YrSinceTrt, data=EU1Sites)
 summary(LRVeg_tEU1)
+summ(LRVeg_tEU1, exp = TRUE)
 
 1-pchisq(11.3043-8.9373, 45-44)
 ```
@@ -458,4 +505,9 @@ for(i in unique(group)) {
 orditorp(NMDS3, display = "species", col = "red", air = 0.01)
 #orditorp(NMDS3, display = "sites", col = c(rep("red",12),
 #  rep("blue", 12)), air = 0.01, cex = 1.25)
+```
+
+```{r}
+MRPP <- mrpp(PCASeeds, EFSites, permutations = 999, distance = "bray", weight.type = 1, strata = NULL, parallel = getOption("mc.cores"))
+summary(MRPP)
 ```

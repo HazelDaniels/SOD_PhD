@@ -3,7 +3,7 @@
 ```{r}
 library(vcfR)
 library(tidyverse)
-vcf <- read.vcfR("C:/Users/hazel/Downloads/ramorumNA1.vcf.gz")
+vcf <- read.vcfR("C:/Users/hazel/Google Drive/_Ph.D. Forestry/Research/2018.06_SpatialAnalysis/ramorumNA1.vcf.gz")
 raw.vcf <- nrow(vcf)
 ```
 
@@ -118,8 +118,9 @@ p <- p + theme_bw()
 p <- p + theme(axis.title.x = element_blank(), 
                axis.text.x = element_text(angle = 60, hjust = 1, size=12))
 p <- p + scale_y_continuous(trans=scales::log2_trans(), 
-                              breaks=c(1, 10, 100, 800),
-                              minor_breaks=c(1:10, 2:10*10, 2:8*100))
+                              breaks=c(1, 10, 100, 800)#,
+                              #minor_breakwritings=c(1:10, 2:10*10, 2:8*100)
+                            )
 p <- p + theme(axis.title.y = element_text(size=12))
 p <- p + theme( panel.grid.major.y=element_line(color = "#A9A9A9", size=0.6) )
 p <- p + theme( panel.grid.minor.y=element_line(color = "#C0C0C0", size=0.2) )
