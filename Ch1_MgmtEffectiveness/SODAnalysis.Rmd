@@ -37,6 +37,8 @@ SODSite.ord <- SODSites[-c(31),,drop=F] #removing HD-4331 as it skews results st
 # Subsetting data
 AllSites <- SODSites[-c(76, 78, 79, 82, 83, 84, 88, 97, 98, 99),,drop=F] #removing HD-4376, 4378, 4379, 4382, 4383, 4384, 4388, 4397, 4398, 4399 as these sites were measured before and after treatment (removing treated data). Removing these duplicate sites to a data subset for separate analysis.
 AllSites <- subset(AllSites, AllSites$Lineage != "U") #removing uninfested sites
+AllSites$TrtBin <- as.factor(AllSites$TrtBin)
+
 NA1 <- subset(AllSites, AllSites$Lineage == "NA1")
 
 AllSeeds <- read_xlsx("BasicData.xlsx", 2)
@@ -94,10 +96,99 @@ ggplot(df,aes(x=Tis,y=Count,fill=Lin))+
 #This visualization includes all 100 sites sampled, including uninfested sites, and EU1 sites that were sampled before and after treatment.
 ```
 
+
 # Vegetation
+## EU1 Repeated Measures
+```{r}
+V3 <- lme(VegProp ~ TrtBin, random = ~1|Plot, data = EU1long)
+
+anova(V3)
+summary(V3)
+
+DTV <-array(c(1,8,0,1),
+           dim=c(2, 2),
+           dimnames=list(
+             Time2=c("ThenPos", "ThenNeg"), 
+             Time1=c("FirstPos", "FirstNeg"))
+           )
+DTV
+
+mcnemar.test(DT, y=NULL, correct = FALSE)
+chisq.test(EU1long$VegProp, EU1long$TrtBin)
+fisher.test(EU1long$VegProp, EU1long$TrtBin)
+
+#correlations
+VC3 <- cor.test(EU1wide$VegPre, EU1wide$VegPost, method=c("pearson", "kendall", "spearman"))
+VC3
+```
+
+## NA1 Veg Wildfire
+```{r}
+V2 <- lm(VegProp ~ RX, data = AllFire)
+
+anova(V2)
+summary(V2)
+summ(V2)
+
+# Contrast statement
+levels(AllFire$RX)
+# 0 - no WF, no RX
+# 1 - no WF, yes RX
+# 2 - yes WF, no RX
+# 3 - yes WF, yes RX
+
+V2.lsm <- lsmeans(V2, ~RX, adjst="tukey")
+V2.lsm
+plot(V2.lsm)
+
+ConV2 <- contrast(V2.lsm, list (
+  Ze.v.On = c(-1, 1, 0, 0), #difference is RX
+  Tw.v.Th = c(0, 0, -1, 1), #difference is RX
+  On.v.Tw = c(0, -1, 1, 0), #difference is both
+  Th.v.Ze = c(1, 0, 0, -1), #difference is both
+  Ze.v.Tw = c(-1, 0, 1, 0), #difference is WF; NS b/c small n & wide CI?
+  On.v.Th = c(0, -1, 0, 1), #difference is WF
+  OnTh.v.Tw = c(0, .5, -1, .5), #both RX to WF w/o RX
+  OnTh.v.Ze = c(-1, .5, 0, .5), #both RX to noWF or RX
+  TwTh.v.Ze = c(-1, 0, .5, .5), #both WF to noWF or RX
+  TwTh.v.On = c(0, -1, .5, .5)  #both WF to RX w/o WF
+  ))
+ConV2
+
+#correlations of random effects not included in the model
+VC2 <- cor.test(AllFire$VegProp, AllFire$TotalTO, method=c("pearson", "kendall", "spearman"))
+VC22 <- cor.test(AllFire$VegProp, AllFire$SoilProp, method=c("pearson", "kendall", "spearman"))
+
+VC2
+VC22 #correlation between soil and veg!
+```
+
+## NA1 Veg Wildfire Assumptions
+```{r}
+plot(V2)
+gvlma(V2)
+
+#constant variance
+spreadLevelPlot(V2)
+
+#normality of residuals
+Resq2 <- qqPlot(V2, main="QQ Plot")
+
+Res2 <- studres(V2)
+hist(Res2, freq = FALSE,
+     main="Distribution of Studentized Residuals")
+xfit2 <- seq(min(Res2), max(Res2), length = 40)
+yfit2 <- dnorm(xfit2)
+lines(xfit2, yfit2)
+
+#outliers
+AllFire$Wleverage <- hatvalues(V2)
+ggplot(AllFire, aes(`New Site`, Wleverage)) + geom_point() + ylim(0,1) + xlab("test")
+```
+
 ## All Veg
 ```{r}
-V1 <- lm(VegProp ~  Lineage + TrtBin, data = AllSites)
+V1 <- lm(VegProp ~ Lineage * TrtBin, data = AllSites)
 
 anova(V1)
 summary(V1)
@@ -107,6 +198,19 @@ summ(V1)
 V1.lsm <- lsmeans(V1, "TrtBin")
 V1.lsm
 plot(V1.lsm)
+
+ConV1 <- contrast(V1.lsm, list (TvU = c(-1, 1)))
+ConV1
+
+#correlations of random effects not included in the model
+VC1 <- cor.test(AllSites$VegProp, AllSites$YrSinceTrt, method=c("pearson", "kendall", "spearman"))
+VC11 <- cor.test(AllSites$VegProp, AllSites$TotalTO, method=c("pearson", "kendall", "spearman"))
+VC111 <- cor.test(AllSites$VegProp, AllSites$Num_Seedlings, method=c("pearson", "kendall", "spearman"))
+VC1111 <- cor.test(AllSites$VegProp, AllSites$SoilProp, method=c("pearson", "kendall", "spearman"))
+VC1
+VC11
+VC111
+VC1111 #correlation between soil and veg!
 ```
 
 ## All Veg Assumptions
@@ -141,26 +245,39 @@ AllSites$Vleverage <- hatvalues(V1)
 ggplot(AllSites, aes(Plot, Vleverage)) + geom_point() + ylim(0,1) + xlab("test")
 ```
 
-## All Veg Correlations
+
+# Soil
+## EU1 Repeated Measures
 ```{r}
-#testing correlations of random effects which were not included in the model
-VC1 <- cor.test(AllSites$VegProp, AllSites$YrSinceTrt, method=c("pearson", "kendall", "spearman"))
-VC11 <- cor.test(AllSites$VegProp, AllSites$TotalTO, method=c("pearson", "kendall", "spearman"))
-VC111 <- cor.test(AllSites$VegProp, AllSites$Num_Seedlings, method=c("pearson", "kendall", "spearman"))
-VC1111 <- cor.test(AllSites$VegProp, AllSites$SoilProp, method=c("pearson", "kendall", "spearman"))
-VC1
-VC11
-VC111
-VC1111 #correlation between soil and veg!
+S3 <- lme(SoilBin ~ TrtBin, random = ~1|Plot, data = EU1long)
+
+anova(S3)
+summary(S3)
+
+DTS <-array(c(1,4,1,4),
+           dim=c(2, 2),
+           dimnames=list(
+             Time2=c("ThenPos", "ThenNeg"), 
+             Time1=c("FirstPos", "FirstNeg"))
+           )
+DTS
+
+mcnemar.test(DTS, y=NULL, correct = FALSE)
+chisq.test(EU1long$SoilBin, EU1long$TrtBin)
+fisher.test(EU1long$SoilBin, EU1long$TrtBin)
+
+#correlations
+SC3 <- cor.test(EU1wide$SoilPre, EU1wide$SoilPost, method=c("pearson", "kendall", "spearman"))
+SC3
 ```
 
-## NA1 Veg Wildfire
+## NA1 Soil Wildfire
 ```{r}
-V2 <- lm(VegProp ~ RX, data = AllFire)
+S2 <- glm(SoilBin ~ RX, data = AllFire)
 
-anova(V2)
-summary(V2)
-summ(V2)
+anova(S2)
+summary(S2)
+summ(S2)
 
 # Contrast statement
 levels(AllFire$RX)
@@ -169,70 +286,38 @@ levels(AllFire$RX)
 # 2 - yes WF, no RX
 # 3 - yes WF, yes RX
 
-V2.lsm <- lsmeans(V2, ~RX, adjst="tukey")
-V2.lsm
-plot(V2.lsm)
+S2.lsm <- lsmeans(S2, ~RX, adjst="tukey")
+S2.lsm
+plot(S2.lsm)
+
+#correlations of random effects not included in the model
+SC2 <- cor.test(AllFire$VegProp, AllFire$TotalTO, method=c("pearson", "kendall", "spearman"))
+SC22 <- cor.test(AllFire$VegProp, AllFire$SoilProp, method=c("pearson", "kendall", "spearman"))
+
+SC2
+SC22 #correlation between soil and veg!
 ```
 
-## NA1 Veg Wildfire Assumptions
+## NA1 Soil Wildfire Assumptions
 ```{r}
-plot(V2)
-gvlma(V2)
+plot(S2)
 
 #constant variance
-spreadLevelPlot(V2)
+spreadLevelPlot(S2)
 
 #normality of residuals
-Resq2 <- qqPlot(V2, main="QQ Plot")
-
-Res2 <- studres(V2)
-hist(Res2, freq = FALSE,
+Res4 <- studres(S2)
+hist(Res4, freq = FALSE,
      main="Distribution of Studentized Residuals")
-xfit2 <- seq(min(Res2), max(Res2), length = 40)
-yfit2 <- dnorm(xfit2)
-lines(xfit2, yfit2)
+xfit4 <- seq(min(Res4), max(Res4), length = 40)
+yfit4 <- dnorm(xfit4)
+lines(xfit4, yfit4)
 
 #outliers
-AllFire$Wleverage <- hatvalues(V2)
-ggplot(AllFire, aes(`New Site`, Wleverage)) + geom_point() + ylim(0,1) + xlab("test")
+AllFire$WSleverage <- hatvalues(S2)
+ggplot(AllFire, aes(`New Site`, WSleverage)) + geom_point() + ylim(0,1) + xlab("test")
 ```
 
-## NA1 Veg Wildfire Correlations
-```{r}
-VC2 <- cor.test(AllFire$VegProp, AllFire$TotalTO, method=c("pearson", "kendall", "spearman"))
-VC22 <- cor.test(AllFire$VegProp, AllFire$SoilProp, method=c("pearson", "kendall", "spearman"))
-
-VC2
-VC22 #correlation between soil and veg!
-```
-
-## EU1 Repeated Measures
-```{r}
-V3 <- lme(VegProp ~ TrtBin, random = ~1|Plot, data = EU1long)
-
-anova(V3)
-summary(V3)
-
-DT <-array(c(1,8,0,1),
-           dim=c(2, 2),
-           dimnames=list(
-             Time2=c("ThenPos", "ThenNeg"), 
-             Time1=c("FirstPos", "FirstNeg"))
-           )
-DT
-
-mcnemar.test(DT, y=NULL, correct = FALSE)
-chisq.test(EU1long$VegProp, EU1long$TrtBin)
-fisher.test(EU1long$VegProp, EU1long$TrtBin)
-```
-
-## EU1 Repeated Measures Correlations
-```{r}
-VC3 <- cor.test(EU1wide$VegPre, EU1wide$VegPost, method=c("pearson", "kendall", "spearman"))
-VC3
-```
-
-# Soil
 ## All Soil
 ```{r}
 S1 <- glm(SoilBin ~  Lineage + TrtBin, family = "binomial", data = AllSites)
@@ -245,6 +330,16 @@ summ(S1)
 S1.lsm <- lsmeans(S1, "TrtBin")
 S1.lsm
 plot(S1.lsm)
+
+#correlations of random effects not included in the model
+SC1 <- cor.test(AllSites$SoilBin, AllSites$YrSinceTrt, method=c("pearson", "kendall", "spearman"))
+SC11 <- cor.test(AllSites$SoilBin, AllSites$TotalTO, method=c("pearson", "kendall", "spearman"))
+SC111 <- cor.test(AllSites$SoilBin, AllSites$Num_Seedlings, method=c("pearson", "kendall", "spearman"))
+SC1111 <- cor.test(AllSites$SoilBin, AllSites$VegProp, method=c("pearson", "kendall", "spearman"))
+SC1
+SC11
+SC111
+SC1111 #correlation between soil and veg!
 ```
 
 ## All Soil Assumptions
@@ -278,67 +373,6 @@ AllSites$Sleverage <- hatvalues(S1)
 ggplot(AllSites, aes(Plot, Sleverage)) + geom_point() + ylim(0,1) + xlab("test")
 ```
 
-## All Soil Correlations
-```{r}
-#testing correlations of random effects which were not included in the model
-SC1 <- cor.test(AllSites$SoilBin, AllSites$YrSinceTrt, method=c("pearson", "kendall", "spearman"))
-SC11 <- cor.test(AllSites$SoilBin, AllSites$TotalTO, method=c("pearson", "kendall", "spearman"))
-SC111 <- cor.test(AllSites$SoilBin, AllSites$Num_Seedlings, method=c("pearson", "kendall", "spearman"))
-SC1111 <- cor.test(AllSites$SoilBin, AllSites$VegProp, method=c("pearson", "kendall", "spearman"))
-SC1
-SC11
-SC111
-SC1111 #correlation between soil and veg!
-```
-
-## NA1 Soil Wildfire
-```{r}
-S2 <- glm(SoilBin ~ RX, data = AllFire)
-
-anova(S2)
-summary(S2)
-summ(S2)
-
-# Contrast statement
-levels(AllFire$RX)
-# 0 - no WF, no RX
-# 1 - no WF, yes RX
-# 2 - yes WF, no RX
-# 3 - yes WF, yes RX
-
-S2.lsm <- lsmeans(S2, ~RX, adjst="tukey")
-S2.lsm
-plot(S2.lsm)
-```
-
-## NA1 Soil Wildfire Assumptions
-```{r}
-plot(S2)
-
-#constant variance
-spreadLevelPlot(S2)
-
-#normality of residuals
-Res4 <- studres(S2)
-hist(Res4, freq = FALSE,
-     main="Distribution of Studentized Residuals")
-xfit4 <- seq(min(Res4), max(Res4), length = 40)
-yfit4 <- dnorm(xfit4)
-lines(xfit4, yfit4)
-
-#outliers
-AllFire$WSleverage <- hatvalues(S2)
-ggplot(AllFire, aes(`New Site`, WSleverage)) + geom_point() + ylim(0,1) + xlab("test")
-```
-
-## NA1 Wildfire Correlations
-```{r}
-SC2 <- cor.test(AllFire$VegProp, AllFire$TotalTO, method=c("pearson", "kendall", "spearman"))
-SC22 <- cor.test(AllFire$VegProp, AllFire$SoilProp, method=c("pearson", "kendall", "spearman"))
-
-SC2
-SC22 #correlation between soil and veg!
-```
 
 # Ordination of seedling data
 ## NMDS
