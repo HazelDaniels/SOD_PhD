@@ -1,0 +1,252 @@
+---
+title: "PopGen"
+author: "Hazel Daniels & Nick Carleson"
+date: "30 March 2021"
+output:
+  word_document: default
+  html_document: default
+---
+
+Following the tutorial found at https://grunwaldlab.github.io/Population_Genetics_in_R/gbs_analysis.html
+
+```{r setup,include = FALSE}
+knitr::opts_chunk$set(echo  =  TRUE)
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+#reading and manipulating data
+library(vcfR)
+library(readxl)
+library(dplyr)
+
+#distance tree
+library(poppr)
+library(ape)
+library(viridis)
+
+#MSN
+library(igraph)
+
+#PCA
+library(ggplot2)
+
+#DAPC
+library(tidyr)
+```
+
+# Reading & manipulating data
+```{r}
+NA1.VCF <- read.vcfR("FinalNA.vcf.gz")
+pop.data <- read_xlsx("population_data.wgs.xlsx",1)
+NA1 <- subset(pop.data, pop.data$Lin == "NA1")
+
+#showing which samples need removed
+NA1$ID[!(NA1$ID %in% colnames(NA1.VCF@gt)[-1])]
+
+#removing filtered sites
+NA1 <- filter(NA1, NA1$ID %in% colnames(NA1.VCF@gt)[-1])
+
+#alpha ordering
+NA1 <- arrange(NA1, ID)
+
+#checking order is the same for both
+all(colnames(NA1.VCF@gt)[-1] == NA1$ID)
+
+NA1.gl <- vcfR2genlight(NA1.VCF)
+ploidy(NA1.gl) <- 2
+pop(NA1.gl) <- NA1$Year
+
+NA1.gl
+
+EU1.VCF <- read.vcfR("FinalEU.vcf.gz")
+EU1 <- subset(pop.data, pop.data$Lin == "EU1")
+
+#showing which samples need removed
+EU1$ID[!(EU1$ID %in% colnames(EU1.VCF@gt)[-1])]
+
+#removing filtered sites
+EU1 <- filter(EU1, EU1$ID %in% colnames(EU1.VCF@gt)[-1])
+
+#alpha ordering
+EU1 <- arrange(EU1, ID)
+
+#checking order is the same for both
+all(colnames(EU1.VCF@gt)[-1] == EU1$ID)
+
+EU1.gl <- vcfR2genlight(EU1.VCF)
+ploidy(EU1.gl) <- 2
+pop(EU1.gl) <- EU1$Year
+
+EU1.gl
+```
+
+# Distance Tree
+```{r}
+treeNA1 <- aboot(NA1.gl, tree = "nj", 
+              distance = bitwise.dist, 
+              sample = 100, showtree = F, 
+              cutoff = 50, quiet = T)
+
+colsNA <- viridis(n = nPop(NA1.gl), begin = 0, end = 1 )
+
+#setting up tree
+plot.phylo(treeNA1, cex = 0.8, font = 2, adj = 0, 
+           tip.color =  colsNA[pop(NA1.gl)])
+#add node labels (left)
+nodelabels(treeNA1$node.label, adj = c(1.3, -0.5), 
+           frame = "n", cex = 0.8,font = 3, xpd = TRUE)
+#add legend (right)
+legend('top', legend = c("2001","2002","2003","2004","2005"),
+       fill = colsNA, border = FALSE, bty = "n", cex = 0.5)
+#add bottom axis
+axis(side = 1)
+#add title
+title(xlab = "NA1 Genetic distance (proportion of loci that are different)")
+
+treeEU1 <- aboot(EU1.gl, tree = "nj", 
+              distance = bitwise.dist, 
+              sample = 100, showtree = F, 
+              cutoff = 50, quiet = T)
+
+colsEU <- viridis(n = nPop(EU1.gl), begin = 0, end = 1 )
+
+#setting up tree
+plot.phylo(treeEU1, cex = 0.8, font = 2, adj = 0, 
+           tip.color =  colsEU[pop(EU1.gl)])
+#add node labels (left)
+nodelabels(treeEU1$node.label, adj = c(1.3, -0.5), 
+           frame = "n", cex = 0.8,font = 3, xpd = TRUE)
+#add legend (right)
+legend('top', legend = c("2016","2017","2018","2019"),
+       fill = colsEU, border = FALSE, bty = "n", cex = 0.5)
+#add bottom axis
+axis(side = 1)
+#add title
+title(xlab = "EU1 Genetic distance (proportion of loci that are different)")
+```
+
+# Minimum Spanning Network
+```{r}
+NA1.dist <- bitwise.dist(NA1.gl)
+NA1.msn <- poppr.msn(NA1.gl, NA1.dist, showplot = FALSE, include.ties = T)
+
+node.NA1 <- rep(2, times = nInd(NA1.gl))
+names(node.NA1) <- indNames(NA1.gl)
+vertex.attributes(NA1.msn$graph)$size <- node.NA1
+
+set.seed(47)
+plot_poppr_msn(NA1.gl, NA1.msn , gadj = 70,
+               palette = viridis(n = nPop(NA1.gl), 
+                                 begin = 0, end = 1))
+
+EU1.dist <- bitwise.dist(EU1.gl)
+EU1.msn <- poppr.msn(EU1.gl, EU1.dist, showplot = FALSE, include.ties = T)
+
+node.EU1 <- rep(2, times = nInd(EU1.gl))
+names(node.EU1) <- indNames(EU1.gl)
+vertex.attributes(EU1.msn$graph)$size <- node.EU1
+
+set.seed(47)
+plot_poppr_msn(EU1.gl, EU1.msn , gadj = 70,
+               palette = viridis(n = nPop(EU1.gl), 
+                                 begin = 0, end = 1))
+```
+
+# Principal Components
+```{r}
+NA1.pca <- glPca(NA1.gl, nf = 3)
+barplot(100*NA1.pca$eig/sum(NA1.pca$eig), 
+        col = heat.colors(50), 
+        main="NA1 PCA Eigenvalues")
+title(ylab="Percent of variance\nexplained", line = 2)
+title(xlab="Eigenvalues", line = 1)
+
+NA1.pca.scores <- as.data.frame(NA1.pca$scores)
+NA1.pca.scores$pop <- pop(NA1.gl)
+
+set.seed(47)
+pp <- ggplot(NA1.pca.scores, aes(x=PC1, y=PC2, colour=pop))+
+  geom_point(size=2)+ 
+  stat_ellipse(level = 0.95, size = 1)+
+  scale_color_manual(values = colsNA)+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)+ 
+  theme_bw()
+pp
+
+EU1.pca <- glPca(EU1.gl, nf = 3)
+barplot(100*EU1.pca$eig/sum(EU1.pca$eig), 
+        col = heat.colors(50), 
+        main="EU1 PCA Eigenvalues")
+title(ylab="Percent of variance\nexplained", line = 2)
+title(xlab="Eigenvalues", line = 1)
+
+EU1.pca.scores <- as.data.frame(EU1.pca$scores)
+EU1.pca.scores$pop <- pop(EU1.gl)
+
+set.seed(47)
+qq <- ggplot(EU1.pca.scores, aes(x=PC1, y=PC2, colour=pop))+
+  geom_point(size=2)+ 
+  stat_ellipse(level = 0.95, size = 1)+
+  scale_color_manual(values = colsEU)+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)+ 
+  theme_bw()
+qq
+```
+
+# DAPC
+```{r}
+NA1.dapc <- dapc(NA1.gl, n.pca = 3, n.da = 2)
+
+scatter(NA1.dapc, col = colsNA, cex = 2, legend = TRUE, clabel = F, posi.leg = "bottomleft", scree.pca = TRUE,
+        posi.pca = "topleft", cleg = 0.75)
+
+compoplot(NA1.dapc,col = colsNA, posi = 'top')
+
+dapc.results.na <- as.data.frame(NA1.dapc$posterior)
+dapc.results.na$pop <- pop(NA1.gl)
+dapc.results.na$indNames <- rownames(dapc.results.na)
+dapc.results.na <- pivot_longer(dapc.results.na, -c(pop, indNames))
+
+head(dapc.results.na, n = 6)
+
+colnames(dapc.results.na) <- c("Original_Pop","Sample","Assigned_Pop","Posterior_membership_probability")
+
+head(dapc.results.na, n = 6)
+
+rr <- ggplot(dapc.results.na, aes(x=Sample, y=Posterior_membership_probability, fill=Assigned_Pop))+ 
+  geom_bar(stat='identity')+ 
+  scale_fill_manual(values = colsNA)+
+  facet_grid(~Original_Pop, scales = "free")+
+  theme(axis.text.x = element_text(angle = 90, 
+                                   hjust = 1, 
+                                   size = 8))
+rr
+
+EU1.dapc <- dapc(EU1.gl, n.pca = 3, n.da = 2)
+
+scatter(EU1.dapc, col = colsEU, cex = 2, legend = TRUE, clabel = F, posi.leg = "bottomleft", scree.pca = TRUE,
+        posi.pca = "topleft", cleg = 0.75)
+
+compoplot(EU1.dapc,col = colsEU, posi = 'top')
+
+dapc.results.eu <- as.data.frame(EU1.dapc$posterior)
+dapc.results.eu$pop <- pop(EU1.gl)
+dapc.results.eu$indNames <- rownames(dapc.results.eu)
+dapc.results.eu <- pivot_longer(dapc.results.eu, -c(pop, indNames))
+
+head(dapc.results.eu, n = 6)
+
+colnames(dapc.results.eu) <- c("Original_Pop","Sample","Assigned_Pop","Posterior_membership_probability")
+
+head(dapc.results.eu, n = 6)
+
+ss <- ggplot(dapc.results.eu, aes(x=Sample, y=Posterior_membership_probability, fill=Assigned_Pop))+ 
+  geom_bar(stat='identity')+ 
+  scale_fill_manual(values = colsEU)+
+  facet_grid(~Original_Pop, scales = "free")+
+  theme(axis.text.x = element_text(angle = 90, 
+                                   hjust = 1, 
+                                   size = 8))
+ss
+```
