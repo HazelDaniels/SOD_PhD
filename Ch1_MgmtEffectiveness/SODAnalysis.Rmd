@@ -1,19 +1,18 @@
 ---
 title: "Curry Co. SOD Analysis"
 author: "Hazel Daniels"
-date: "14 March 2021"
+date: "2/5/2021"
 output:
   word_document: default
   html_document: default
 ---
 
-```{r setup,include = FALSE}
-knitr::opts_chunk$set(echo  =  TRUE)
+# R setup and libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-#analysis tools
 library(readxl)
 library(ggplot2)
-library(dplyr)
 library(vegan)
 library(ape)
 library(tidyverse)
@@ -27,1002 +26,417 @@ library(broom)
 library(rstatix)
 library(ggpubr)
 library(emmeans)
-library(gridExtra)
-library(agricolae)
-library(scales)
-
-#map-making tools
-library(cowplot)
-library(googleway)
-library(ggrepel)
-library(ggspatial)
-library(lwgeom)
-library(maps)
-library(sf)
-library(rgdal)
-library(rgeos)
-library(rnaturalearth)
-library(rnaturalearthdata)
-library(tools)
 ```
 
 # Reading and manipulating data
-```{r,message = FALSE,warning = FALSE}
-SODSites <- read_xlsx("BasicData.xlsx",1)
-SODSite.ord <- SODSites[-c(31),,drop = F] 
-#removing HD-4331 as it skews results strongly
+```{r, inlcude=FALSE}
+SODSites <- read_xlsx("BasicData.xlsx", 1)
+head(SODSites)
+SODSite.ord <- SODSites[-c(31),,drop=F] #removing HD-4331 as it skews results strongly
 
 # Subsetting data
-AllSites <- SODSites[-c(74,76,77,80,81,82,86,95,96,97),,drop = F] 
-#removing HD-4376, 4378, 4379, 4382, 4383, 4384, 4388, 4397, 4398, 4399 as these sites were measured before and after treatment (removing treated data). Removing these duplicate sites to a data subset for separate analysis.
+AllSites <- SODSites[-c(76, 78, 79, 82, 83, 84, 88, 97, 98, 99),,drop=F] #removing HD-4376, 4378, 4379, 4382, 4383, 4384, 4388, 4397, 4398, 4399 as these sites were measured before and after treatment (removing treated data). Removing these duplicate sites to a data subset for separate analysis.
+AllSites <- subset(AllSites, AllSites$Lineage != "U") #removing uninfested sites
 AllSites$TrtBin <- as.factor(AllSites$TrtBin)
 
 NA1 <- subset(AllSites, AllSites$Lineage == "NA1")
 
-AllSeeds <- read_xlsx("BasicData.xlsx",2)
-AllSeeds <- AllSeeds[-13] 
-#removing CE as it skews results strongly
-AllSeeds <- AllSeeds[-c(31),,drop = F] 
-#removing HD-4331 as it skews results strongly
-AllSeeds$TrtBin <- as.factor(AllSeeds$TrtBin)
-AllSeeds$WFBin <- as.factor(AllSeeds$WFBin)
-AllSeeds$VegBin <- as.factor(AllSeeds$VegBin)
-AllSeeds$SoilBin <- as.factor(AllSeeds$SoilBin)
+AllSeeds <- read_xlsx("BasicData.xlsx", 2)
+AllSeeds <- column_to_rownames(AllSeeds, var = "New Site")
+head(AllSeeds)
+AllSeeds <- AllSeeds[-11] #removing CE as it skews results strongly
+AllSeeds <- AllSeeds[-c(31),,drop=F] #removing HD-4331 as it skews results strongly
 
-AllFire <- read_xlsx("BasicData.xlsx",3)
+AllFire <- read_xlsx("BasicData.xlsx", 3)
 AllFire$RX <- as.factor(AllFire$RX)
+head(AllFire)
 
-EU1wide <- read_xlsx("BasicData.xlsx",4)
+EU1wide <- read_xlsx("BasicData.xlsx", 4)
+head(EU1wide)
 
-EU1long <- read_xlsx("BasicData.xlsx",5)
+EU1long <- read_xlsx("BasicData.xlsx", 5)
+head(EU1long)
 ```
 
-# Visualization by Analysis Group
+# Visualizing raw data
 ```{r}
-OCW <- st_as_sf(map("state", plot = FALSE, fill = TRUE, 
-                    crs = 4326, agr = "constant"))
-OCW <- OCW[c(4,36,46),,]
-OCW$area <- as.numeric(st_area(OCW))
-OCW$ID <- toTitleCase(OCW$ID)
-OCW$X <- c(-124.1,-124.1, -124.1)
-OCW$Y <- c(41.99, 43, 44)
-OCW$X2 <- c(-123,-123, -122.5)
-OCW$Y2 <- c(41, 44, 46.5)
+ggplot(AllSites, aes(x=x)) +
+  geom_histogram( aes(x = VegProp, y = stat(count))) +
+  scale_x_continuous(name = "Was P.ramorum found in residual Veg sample?", breaks = seq(0, 1)) +
+  facet_grid(Lineage ~ TrtBin) +
+  labs(title = "Veg") +
+  theme_bw()
 
-LatLong <- SODSites %>% select(`New Site`, 
-                               Lineage, 
-                               TrtBin, 
-                               Latitude, 
-                               Longitude)
-LatLong$Grp <- c(1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,2,1,3,3,3,2,2,2,2,3,1,1,2,2,2,2,3,3,1,2,1,2,2,3,2,1,2,2,2,2,2,1,2,1,2,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,3,1,3,3,1,1,3,3,3,1,1,1,3,1,1,1,1,1,1,1,1,3,3,3,1)
-LatLong$Latitude <- as.numeric(LatLong$Latitude)
-LatLong$Longitude <- as.numeric(LatLong$Longitude)
-LatLong$Longitude <- LatLong$Longitude + 0.05 
-#forced offset since the layers weren't playing nice :(
-LatLong <- st_as_sf(LatLong, coords = c("Longitude", "Latitude"),
-                    crs = 4326, agr = "constant")
+ggplot(AllSites, aes(x=x)) +
+  geom_histogram( aes(x = SoilProp, y = stat(count))) +
+  scale_x_continuous(name = "Was P.ramorum found in residual Soil sample?", breaks = seq(0, 1)) +
+  facet_grid(Lineage ~ TrtBin) +
+  labs(title = "Soil") +
+  theme_bw()
 
+Trt <- c(rep("Untreated", 4), rep("Treated", 4))
+Lin <- c("EU1","EU1","NA1","NA1","EU1","EU1","NA1","NA1")
+Tis <- c("Vegetation","Soil","Vegetation","Soil","Vegetation","Soil","Vegetation","Soil")
+Count <- c(54, 9, 51, 9, 15, 7, 28, 9)
+df <- data.frame(Trt,Lin,Tis,Count)
+df
 
-ORci <- data.frame(state = rep("Oregon", 2), 
-                   city = c("Brookings", "Gold Beach"), 
-                   lat = c(42.0526, 42.4073), 
-                   lng = c(-124.22, -124.37))
-ORci <- st_as_sf(ORci, coords = c("lng", "lat"), remove = FALSE, 
-    crs = 4326, agr = "constant")
-
-inset <- ggplot(data = OCW)+
-    geom_sf(fill = "cornsilk")+
-    geom_text(data = OCW, aes(X2, Y2, label = ID), size = 3)+
-    coord_sf(xlim = c(-124.5, -121.5), ylim = c(41, 47))+
-    geom_rect(xmin = -124.5, xmax = -124, 
-              ymin = 42, ymax = 42.5,
-              fill = NA, colour = "black", size = 1) +
-    theme(panel.grid.major = element_line(color = gray(0.5), 
-          linetype = "dashed",size = 0.5), 
-          panel.background = element_rect(fill = "aliceblue"),
-          axis.ticks = element_blank(),
-          axis.text.x = element_blank(), 
-          axis.text.y = element_blank(),
-          axis.title.x = element_blank(),
-          axis.title.y = element_blank())
-
-map <- ggplot(data = OCW)+
-    geom_sf(fill = "antiquewhite1")+
-    geom_sf(data = LatLong, size = 3, shape = 22, 
-            aes(fill=factor(Grp)))+
-    geom_sf(data = ORci)+
-    geom_text(data = OCW, aes(X, Y, label = ID), size = 4)+
-    geom_text_repel(data = ORci, 
-                    aes(x = lng, y = lat, label = city), 
-                    fontface = "bold", 
-                    nudge_x = c(-0.05,0.05), 
-                    nudge_y = c(-0.01,-0.01))+
-    scale_fill_viridis_d(option = "plasma", 
-                         name = "Analysis Groups", 
-                         breaks = c("1", "3", "2"), 
-                         labels = c("EU1", "EU1 Resample", "NA1"))+
-    annotation_scale(location = "bl", width_hint = 0.4)+
-    annotation_north_arrow(location = "tl", which_north = "true", 
-        pad_x = unit(0.3, "in"), pad_y = unit(0.35, "in"),
-        style = north_arrow_fancy_orienteering)+
-    coord_sf(xlim = c(-124.5, -124), ylim = c(42, 42.5))+
-    xlab("Longitude")+ylab("Latitude")+
-    theme(panel.grid.major = element_line(color = gray(0.5), 
-          linetype = "dashed",size = 0.5), 
-          panel.background = element_rect(fill = "aliceblue"),
-          legend.position = c(0.17,0.17))
-
-mapinset <- ggdraw(map) +
-    draw_plot(inset, width = 0.45, height = 0.45, x = 0.565, y = 0.53)
-
-ggsave(filename = "MapInset.png",
-       mapinset,
-       width = 6.5,
-       height = 6.5,
-       dpi = 300,
-       units = "in",
-       device = 'png')
-```
-
-# EU1 NA1 Mixed Group
-## Visualizing Data
-```{r,echo = FALSE,message = FALSE,warning = FALSE}
-dv <- AllSites %>% select(Lineage,VegProp,TrtBin)
-
-dvsum <- dv %>% 
-  group_by(Lineage,TrtBin) %>%
-  summarise(n = n(),mean = mean(VegProp),sd = sd(VegProp)) %>%
-  mutate(se = sd/sqrt(n))  %>%
-  mutate(ic = se*qt((1-0.05)/2+0.5, n-1))
-
-pV <- ggplot(dvsum,aes(x = TrtBin,
-                       y = mean,
-                       fill = Lineage,
-                       ymin = mean-se,
-                       ymax = mean+se))+
-  geom_bar(stat = "identity",position = "dodge",color = "gray",width = 0.9)+
-  ggtitle("A.")+
-  scale_fill_viridis_d(name = "Lineage", guide = FALSE)+
-  scale_x_discrete(name = "Treatment",
-                   breaks = c("0","1"), 
-                   labels = c("0" = "Untreated","1" = "Treated"))+
-  scale_y_continuous(labels = scales::number_format
-                     (accuracy = 0.01),
-                     limits = c(0,0.6))+
+ggplot(df,aes(x=Tis,y=Count,fill=Lin))+
+  geom_bar(stat="identity",position="dodge")+
+  scale_fill_discrete(name="Lineage",labels=c("EU1", "NA1"))+
+  scale_fill_viridis_d() +
   theme_classic()+
-  theme(axis.title.x = element_blank(),
-        axis.text.x = element_blank(),
-        axis.title.y = element_blank(),
-        strip.background = element_blank(),
-        strip.text.x  =  element_blank())+
-  facet_wrap(~Lineage,ncol = 2)
-  
-pVV <- pV+geom_errorbar(width = 0.2,colour = "orange",alpha = 0.9,size = 1.3)
+  theme(legend.position="none", text = element_text(size=15))+
+  xlab("Source material tested positive for P. ramorum")+
+  ylab("Count")+
+  ylim(0, 60)+
+  geom_text(aes(label = Count), vjust = -0.5)+
+  facet_grid(Lin~Trt)
 
-ds <- AllSites %>% select(Lineage,SoilProp,TrtBin)
-
-dssum <- ds %>% 
-  group_by(Lineage,TrtBin) %>%
-  summarise(n = n(),mean = mean(SoilProp),sd = sd(SoilProp)) %>%
-  mutate(se = sd/sqrt(n))  %>%
-  mutate(ic = se*qt((1-0.05)/2 +0.5,n-1))
-
-pS <- ggplot(dssum,aes(x = TrtBin,
-                       y = mean,
-                       fill = Lineage,
-                       ymin = mean-se,
-                       ymax = mean+se))+
-  geom_bar(stat = "identity",position = "dodge",color = "gray",width = 0.9)+
-  ylim(0,0.06)+
-  ggtitle("B.")+
-  labs(x = "Treatment")+
-  scale_fill_viridis_d(name = "Lineage")+
-  scale_x_discrete(name = "Treatment",
-                   breaks = c("0","1"),
-                   labels = c("0" = "Untreated","1" = "Treated"))+
-  theme_classic()+ 
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        axis.title.y = element_blank(),
-        strip.background = element_blank(),
-        strip.text.x  =  element_blank())+
-  facet_wrap(~Lineage,ncol = 2)
-
-pSS <- pS+geom_errorbar(width = 0.2,colour = "orange",alpha = 0.9,size = 1.3)
-
-pVS <- ggarrange(pVV,pSS,ncol = 1,nrow = 2,
-                 heights = c(0.7,1))
-plotVS<- annotate_figure(pVS,left = text_grob("Mean proportion of source material",rot = 90))
-plotVS
-
-ggsave(filename = "MeanProp.png",
-       plotVS,
-       width = 6.5,
-       height = 6,
-       dpi = 300,
-       units = "in",
-       device = 'png')
+#This visualization includes all 100 sites sampled, including uninfested sites, and EU1 sites that were sampled before and after treatment.
 ```
 
-## Veg Mix
-```{r,message = FALSE,warning = FALSE}
-V1 <- lm(VegProp~Lineage*TrtBin,data = AllSites)
+
+# Vegetation
+## EU1 Repeated Measures
+```{r}
+V3 <- lme(VegProp ~ TrtBin, random = ~1|Plot, data = EU1long)
+
+anova(V3)
+summary(V3)
+
+DTV <-array(c(1,8,0,1),
+           dim=c(2, 2),
+           dimnames=list(
+             Time2=c("ThenPos", "ThenNeg"), 
+             Time1=c("FirstPos", "FirstNeg"))
+           )
+DTV
+
+mcnemar.test(DT, y=NULL, correct = FALSE)
+chisq.test(EU1long$VegProp, EU1long$TrtBin)
+fisher.test(EU1long$VegProp, EU1long$TrtBin)
+
+#correlations
+VC3 <- cor.test(EU1wide$VegPre, EU1wide$VegPost, method=c("pearson", "kendall", "spearman"))
+VC3
+```
+
+## NA1 Veg Wildfire
+```{r}
+V2 <- lm(VegProp ~ RX, data = AllFire)
+
+anova(V2)
+summary(V2)
+summ(V2)
+
+# Contrast statement
+levels(AllFire$RX)
+# 0 - no WF, no RX
+# 1 - no WF, yes RX
+# 2 - yes WF, no RX
+# 3 - yes WF, yes RX
+
+V2.lsm <- lsmeans(V2, ~RX, adjst="tukey")
+V2.lsm
+plot(V2.lsm)
+
+ConV2 <- contrast(V2.lsm, list (
+  Ze.v.On = c(-1, 1, 0, 0), #difference is RX
+  Tw.v.Th = c(0, 0, -1, 1), #difference is RX
+  On.v.Tw = c(0, -1, 1, 0), #difference is both
+  Th.v.Ze = c(1, 0, 0, -1), #difference is both
+  Ze.v.Tw = c(-1, 0, 1, 0), #difference is WF; NS b/c small n & wide CI?
+  On.v.Th = c(0, -1, 0, 1), #difference is WF
+  OnTh.v.Tw = c(0, .5, -1, .5), #both RX to WF w/o RX
+  OnTh.v.Ze = c(-1, .5, 0, .5), #both RX to noWF or RX
+  TwTh.v.Ze = c(-1, 0, .5, .5), #both WF to noWF or RX
+  TwTh.v.On = c(0, -1, .5, .5)  #both WF to RX w/o WF
+  ))
+ConV2
+
+#correlations of random effects not included in the model
+VC2 <- cor.test(AllFire$VegProp, AllFire$TotalTO, method=c("pearson", "kendall", "spearman"))
+VC22 <- cor.test(AllFire$VegProp, AllFire$SoilProp, method=c("pearson", "kendall", "spearman"))
+
+VC2
+VC22 #correlation between soil and veg!
+```
+
+## NA1 Veg Wildfire Assumptions
+```{r}
+plot(V2)
+gvlma(V2)
+
+#constant variance
+spreadLevelPlot(V2)
+
+#normality of residuals
+Resq2 <- qqPlot(V2, main="QQ Plot")
+
+Res2 <- studres(V2)
+hist(Res2, freq = FALSE,
+     main="Distribution of Studentized Residuals")
+xfit2 <- seq(min(Res2), max(Res2), length = 40)
+yfit2 <- dnorm(xfit2)
+lines(xfit2, yfit2)
+
+#outliers
+AllFire$Wleverage <- hatvalues(V2)
+ggplot(AllFire, aes(`New Site`, Wleverage)) + geom_point() + ylim(0,1) + xlab("test")
+```
+
+## All Veg
+```{r}
+V1 <- lm(VegProp ~ Lineage * TrtBin, data = AllSites)
 
 anova(V1)
 summary(V1)
 summ(V1)
 
-# Least Squares Means
-V1.lsm <- lsmeans(V1,"TrtBin")
-V1LSM <- as.data.frame(V1.lsm)
+# Contrast statement
+V1.lsm <- lsmeans(V1, "TrtBin")
+V1.lsm
+plot(V1.lsm)
 
-#Least Squares Means visualization
-pLSV <- ggplot(V1LSM,aes(x = TrtBin,
-                         y = lsmean,
-                         fill = TrtBin,
-                         ymin = lower.CL,
-                         ymax = upper.CL))+
-  geom_bar(stat = "identity",position = "dodge",color = "gray",width = 0.9)+
-  ylim(0,0.6)+
-  ggtitle("Vegetation")+
-  scale_fill_viridis_d(name = "Lineage",guide = FALSE,)+
-  scale_x_discrete(name = "Treatment",
-                   breaks = c("0","1"),
-                   labels = c("0" = "Untreated","1" = "Treated"))+
-  theme_classic()+
-  theme(axis.title.x = element_blank(),
-        axis.text.x = element_blank(),
-        axis.title.y = element_blank())
-  
-pLSVV <- pLSV+geom_errorbar(width = 0.2,colour = "orange",alpha = 0.9,size = 1.3)
-
-#Contrasts
-V1.c <- contrast(V1.lsm,list(TvU = c(-1,1)))
-V1.c
+ConV1 <- contrast(V1.lsm, list (TvU = c(-1, 1)))
+ConV1
 
 #correlations of random effects not included in the model
-VC1 <- cor.test(AllSites$VegProp,AllSites$YrSinceTrt, method = c("pearson","kendall","spearman"))
-VC11 <- cor.test(AllSites$VegProp,AllSites$TotalTO, method = c("pearson","kendall","spearman"))
-VC111 <- cor.test(AllSites$VegProp,AllSites$Num_Seedlings, method = c("pearson","kendall","spearman"))
-VC1111 <- cor.test(AllSites$VegProp,AllSites$SoilBin, method = c("pearson","kendall","spearman"))
+VC1 <- cor.test(AllSites$VegProp, AllSites$YrSinceTrt, method=c("pearson", "kendall", "spearman"))
+VC11 <- cor.test(AllSites$VegProp, AllSites$TotalTO, method=c("pearson", "kendall", "spearman"))
+VC111 <- cor.test(AllSites$VegProp, AllSites$Num_Seedlings, method=c("pearson", "kendall", "spearman"))
+VC1111 <- cor.test(AllSites$VegProp, AllSites$SoilProp, method=c("pearson", "kendall", "spearman"))
 VC1
 VC11
 VC111
-VC1111
-#correlation between soil and veg!
+VC1111 #correlation between soil and veg!
 ```
 
-## Soil Mix
-```{r,message = FALSE,warning = FALSE}
-S1 <- glm(SoilBin~Lineage*TrtBin,family = "binomial",data = AllSites)
-
-anova(S1)
-summary(S1)
-summ(S1)
-
-# Contrast statement
-S1.lsm <- lsmeans(S1,"TrtBin")
-S1.lsm
-S1LSM <- as.data.frame(S1.lsm)
-S1LSM
-
-#Least Squares Means visualization
-pLSS <- ggplot(S1LSM,aes(x = TrtBin,
-                         y = lsmean,
-                         fill = TrtBin,
-                         ymin = asymp.LCL,
-                         ymax = asymp.UCL))+
-  geom_bar(stat = "identity",position = "dodge",color = "gray",width = 0.9)+
-  ylim(-2.5,0)+
-  ggtitle("Soil")+
-  scale_fill_viridis_d(name = "Lineage",guide = FALSE,)+
-  scale_x_discrete(name = "Treatment",
-                   breaks = c("0","1"),
-                   labels = c("0" = "Untreated","1" = "Treated"))+
-  theme_classic()+
-  theme(axis.title.y = element_blank())
-  
-pLSSS <- pLSS+geom_errorbar(width = 0.2,colour = "orange",alpha = 0.9,size = 1.3)
-
-#Combining veg and soil plots
-pLSVS <- ggarrange(pLSVV,pLSSS,ncol = 1,nrow = 2)
-plotLSVS<- annotate_figure(pLSVS,left = text_grob("Least Squares Mean",rot = 90))
-plotLSVS
-
-ggsave(filename = "LSM.png",
-       plotLSVS,
-       width = 6.5,
-       height = 5,
-       dpi = 300,
-       units = "in",
-       device = 'png')
-
-#Contrasts
-S1.c <- contrast(S1.lsm,list(TvU = c(-1,1)))
-S1.c
-
-#correlations of random effects not included in the model
-SC1 <- cor.test(AllSites$SoilBin,AllSites$YrSinceTrt, method = c("pearson","kendall","spearman"))
-SC11 <- cor.test(AllSites$SoilBin,AllSites$TotalTO, method = c("pearson","kendall","spearman"))
-SC111 <- cor.test(AllSites$SoilBin,AllSites$Num_Seedlings, method = c("pearson","kendall","spearman"))
-SC1
-SC11
-SC111
-```
-
-## V Mix Assumptions
-```{r,message = FALSE,warning = FALSE}
+## All Veg Assumptions
+```{r}
 plot(V1)
 gvlma(V1)
 
 #linearity
-ggplot(AllSites,aes(TrtBin,VegProp))+ 
-  stat_smooth(method = "loess")+ 
-  stat_smooth(method = "lm",color = "red",fill = "red",alpha = .25)+ 
+ggplot(AllSites, aes(TrtBin,VegProp)) + 
+  stat_smooth(method="loess") + 
+  stat_smooth(method="lm", color="red", fill="red", alpha=.25) + 
   geom_point()
 
 #constant variance
 spreadLevelPlot(V1)
 
 #normality of residuals
-V1.resi <- qqPlot(V1,main = "QQ Plot")
+Resq1 <- qqPlot(V1, main="QQ Plot")
 
-V1.res <- studres(V1)
-hist(V1.res,freq = FALSE,main = "Distribution of Studentized Residuals")
-V1.xfit <- seq(min(V1.res),max(V1.res),length  =  40)
-V1.yfit <- dnorm(V1.xfit)
-lines(V1.xfit,V1.yfit)
+Res1 <- studres(V1)
+hist(Res1, freq = FALSE, main="Distribution of Studentized Residuals")
+xfit1 <- seq(min(Res1), max(Res1), length = 40)
+yfit1 <- dnorm(xfit1)
+lines(xfit1, yfit1)
 
 #multicollinearity
 vif(V1)
-sqrt(vif(V1))>2
+sqrt(vif(V1)) > 2
 
 #outliers
 AllSites$Vleverage <- hatvalues(V1)
-ggplot(AllSites,aes(Plot,Vleverage))+geom_point()+ylim(0,1)+xlab("test")
+ggplot(AllSites, aes(Plot, Vleverage)) + geom_point() + ylim(0,1) + xlab("test")
 ```
 
-## S Mix Assumptions
-```{r,message = FALSE,warning = FALSE}
+
+# Soil
+## EU1 Repeated Measures
+```{r}
+S3 <- lme(SoilBin ~ TrtBin, random = ~1|Plot, data = EU1long)
+
+anova(S3)
+summary(S3)
+
+DTS <-array(c(1,4,1,4),
+           dim=c(2, 2),
+           dimnames=list(
+             Time2=c("ThenPos", "ThenNeg"), 
+             Time1=c("FirstPos", "FirstNeg"))
+           )
+DTS
+
+mcnemar.test(DTS, y=NULL, correct = FALSE)
+chisq.test(EU1long$SoilBin, EU1long$TrtBin)
+fisher.test(EU1long$SoilBin, EU1long$TrtBin)
+
+#correlations
+SC3 <- cor.test(EU1wide$SoilPre, EU1wide$SoilPost, method=c("pearson", "kendall", "spearman"))
+SC3
+```
+
+## NA1 Soil Wildfire
+```{r}
+S2 <- glm(SoilBin ~ RX, data = AllFire)
+
+anova(S2)
+summary(S2)
+summ(S2)
+
+# Contrast statement
+levels(AllFire$RX)
+# 0 - no WF, no RX
+# 1 - no WF, yes RX
+# 2 - yes WF, no RX
+# 3 - yes WF, yes RX
+
+S2.lsm <- lsmeans(S2, ~RX, adjst="tukey")
+S2.lsm
+plot(S2.lsm)
+
+#correlations of random effects not included in the model
+SC2 <- cor.test(AllFire$VegProp, AllFire$TotalTO, method=c("pearson", "kendall", "spearman"))
+SC22 <- cor.test(AllFire$VegProp, AllFire$SoilProp, method=c("pearson", "kendall", "spearman"))
+
+SC2
+SC22 #correlation between soil and veg!
+```
+
+## NA1 Soil Wildfire Assumptions
+```{r}
+plot(S2)
+
+#constant variance
+spreadLevelPlot(S2)
+
+#normality of residuals
+Res4 <- studres(S2)
+hist(Res4, freq = FALSE,
+     main="Distribution of Studentized Residuals")
+xfit4 <- seq(min(Res4), max(Res4), length = 40)
+yfit4 <- dnorm(xfit4)
+lines(xfit4, yfit4)
+
+#outliers
+AllFire$WSleverage <- hatvalues(S2)
+ggplot(AllFire, aes(`New Site`, WSleverage)) + geom_point() + ylim(0,1) + xlab("test")
+```
+
+## All Soil
+```{r}
+S1 <- glm(SoilBin ~  Lineage + TrtBin, family = "binomial", data = AllSites)
+
+anova(S1)
+summary(S1)
+summ(S1)
+
+# Contrast statement
+S1.lsm <- lsmeans(S1, "TrtBin")
+S1.lsm
+plot(S1.lsm)
+
+#correlations of random effects not included in the model
+SC1 <- cor.test(AllSites$SoilBin, AllSites$YrSinceTrt, method=c("pearson", "kendall", "spearman"))
+SC11 <- cor.test(AllSites$SoilBin, AllSites$TotalTO, method=c("pearson", "kendall", "spearman"))
+SC111 <- cor.test(AllSites$SoilBin, AllSites$Num_Seedlings, method=c("pearson", "kendall", "spearman"))
+SC1111 <- cor.test(AllSites$SoilBin, AllSites$VegProp, method=c("pearson", "kendall", "spearman"))
+SC1
+SC11
+SC111
+SC1111 #correlation between soil and veg!
+```
+
+## All Soil Assumptions
+```{r}
 plot(S1)
 
 #linearity
-ggplot(AllSites,aes(SoilBin,TrtBin))+ 
-  stat_smooth(method = "loess")+ 
-  stat_smooth(method = "lm",color = "red",fill = "red",alpha = .25)+ 
+ggplot(AllSites, aes(SoilBin,TrtBin)) + 
+  stat_smooth(method="loess") + 
+  stat_smooth(method="lm", color="red", fill="red", alpha=.25) + 
   geom_point()
 
 #constant varience
 spreadLevelPlot(S1)
 
 #normality of residuals
-S1.resi <- studres(S1)
-hist(S1.resi,freq  =  FALSE,main = "Distribution of Studentized Residuals")
-S1.xfit <- seq(min(S1.resi),max(S1.resi),length = 40)
-S1.yfit <- dnorm(S1.xfit)
-lines(S1.xfit,S1.yfit)
+Res3 <- studres(S1)
+hist(Res3, freq = FALSE,
+     main="Distribution of Studentized Residuals")
+xfit3 <- seq(min(Res3), max(Res3), length = 40)
+yfit3 <- dnorm(xfit3)
+lines(xfit3, yfit3)
 #assumption violated?
 
 #multicollinearity
 vif(S1)
-sqrt(vif(S1))>2
+sqrt(vif(S1)) > 2
 
 #outliers
 AllSites$Sleverage <- hatvalues(S1)
-ggplot(AllSites,aes(Plot,Sleverage))+geom_point()+ylim(0,1)+xlab("test")
+ggplot(AllSites, aes(Plot, Sleverage)) + geom_point() + ylim(0,1) + xlab("test")
 ```
 
-# EU1 Repeated Measures
-## EU1 Veg
-```{r,message = FALSE,warning = FALSE}
-V2 <- lme(VegProp~TrtBin,random = ~1|Plot,data = EU1long)
 
-anova(V2)
-summary(V2)
+# Ordination of seedling data
+## NMDS
+```{r}
+PCASeeds <- AllSeeds[5:35]
+DistSeed <- vegdist(PCASeeds, method = "bray")
 
-V.dt <-array(c(1,0,8,1),
-           dim = c(2,2),
-           dimnames = list(
-             Time1 = c("FirstPos","FirstNeg"),
-             Time2 = c("ThenPos","ThenNeg")))
-V.dt
-
-mcnemar.test(V.dt,y = NULL,correct = FALSE)
-```
-
-## EU1 Soil
-```{r,message = FALSE,warning = FALSE}
-S2 <- lme(SoilBin~TrtBin,random = ~1|Plot,data = EU1long)
-
-anova(S2)
-summary(S2)
-
-S.dt <-array(c(1,1,4,4),
-           dim = c(2,2),
-           dimnames = list(
-             Time1 = c("FirstPos","FirstNeg"),
-             Time2 = c("ThenPos","ThenNeg")))
-S.dt
-
-mcnemar.test(S.dt,y = NULL,correct = FALSE)
-```
-
-# NA1 Wildfire
-## NA1 Veg
-```{r,message = FALSE,warning = FALSE}
-V3 <- lm(VegProp~RX,data = AllFire)
-
-anova(V3)
-summary(V3)
-summ(V3)
-
-# Contrast statement
-levels(AllFire$RX)
-# 0 - No Wildfire or Treatment
-# 1 - Only Treatment
-# 2 - Only Wildfire
-# 3 - Both Wildfire and Treatment
-
-#Least Squares Means
-V3.lsm <- lsmeans(V3,~RX,adjst = "tukey")
-V3.lsm
-V3LSM <- as.data.frame(V3.lsm)
-V3LSM
-
-#Contrasts
-V3.c <- contrast(V3.lsm,list(
-  "0 v. 1" = c(1,-1,0,0), #difference is RX
-  "0 v. 2" = c(1,0,-1,0), #difference is WF
-  "0 v. 3" = c(1,0,0,-1), #difference is both
-  "1 v. 2" = c(0,-1,1,0), #difference is both
-  "1 v. 3" = c(0,1,0,-1), #difference is WF
-  "2 v. 3" = c(0,0,1,-1), #difference is RX
-  "1&3 v. 0" = c(1,-0.5,0,-0.5), #both RX to noWF or RX
-  "2&3 v. 0" = c(1,0,-0.5,-0.5))) #both WF to noWF or RX
-V3.c
-
-V3CON <- as.data.frame(V3.c)
-V3CON$contrast <- factor(V3CON$contrast, levels=c("0 v. 1","0 v. 2","0 v. 3","1 v. 2","1 v. 3","2 v. 3","1&3 v. 0","2&3 v. 0"))
-
-p.VWF <- ggplot(V3CON,aes(x = contrast,
-                 y = estimate,
-                 fill = contrast,
-                 ymin = estimate-SE,
-                 ymax = estimate+SE))+
-  geom_bar(stat = "identity",position = "dodge",color = "gray")+
-  scale_fill_viridis_d()+theme_classic()+
-  scale_x_discrete(name = "Contrast Statement",
-                   guide = guide_axis(angle = 20),
-                   labels = c(
-                     "0 v. 1" = "None v. RX",
-                     "0 v. 2" = "None v. WF",
-                     "0 v. 3" = "None v. Both",
-                     "1 v. 2" = "RX v. WF",
-                     "1 v. 3" = "RX v. Both",
-                     "2 v. 3" = "WF v. Both",
-                     "1&3 v. 0" = "RX + Both v. None",
-                     "2&3 v. 0" = "WF + Both v. None"))+
-  scale_y_continuous("Difference in Least Squares Mean",
-                     limits = c(-0.1,0.55),
-                     breaks = c(-0.1,0,0.1,0.2,0.3,0.4,0.5))+
-  theme(legend.position = "none",
-        text = element_text(size = 15))+
-  geom_errorbar(width = 0.2,colour = "orange",alpha = 0.9,size = 1.3)+
-  geom_text(aes(x = contrast,y = estimate+SE+0.01,
-                label = c("*","","*","","","","*","*")),
-            size = 5,position = position_dodge(.5))
-p.VWF
-
-ggsave(filename = "WFVeg.png",
-       p.VWF,
-       width = 6.5,
-       height = 5,
-       dpi = 300,
-       units = "in",
-       device = 'png')
-
-#Correlations of random effects not included in the model
-VC3 <- cor.test(AllFire$VegProp,AllFire$TotalTO,method = c("pearson","kendall","spearman"))
-VC33 <- cor.test(AllFire$VegProp,AllFire$SoilProp,method = c("pearson","kendall","spearman"))
-VC3
-VC33 #correlation between soil and veg!
-```
-
-## NA1 Soil
-```{r,message = FALSE,warning = FALSE}
-S3 <- glm(SoilBin~RX,data = AllFire)
-
-anova(S3)
-summary(S3)
-summ(S3)
-
-# Contrast statement
-S3.lsm <- lsmeans(S3,~RX,adjst = "tukey")
-S3.lsm
-S3LSM <- as.data.frame(S3.lsm)
-S3LSM
-
-S3.c <- contrast(S3.lsm,list(
-  "0 v. 1" = c(-1,1,0,0), #difference is RX
-  "0 v. 2" = c(-1,0,1,0), #difference is WF
-  "0 v. 3" = c(1,0,0,-1), #difference is both
-  "1 v. 2" = c(0,-1,1,0), #difference is both
-  "1 v. 3" = c(0,1,0,-1), #difference is WF
-  "2 v. 3" = c(0,0,1,-1), #difference is RX
-  "1&3 v. 0" = c(1,-0.5,0,-0.5), #both RX to noWF or RX
-  "2&3 v. 0" = c(-1,0,0.5,0.5))) #both WF to noWF or RX
-S3.c
-
-S3CON <- as.data.frame(S3.c)
-S3CON$contrast <- factor(S3CON$contrast, levels=c("0 v. 1","0 v. 2","0 v. 3","1 v. 2","1 v. 3","2 v. 3","1&3 v. 0","2&3 v. 0"))
-
-p.SWF <- ggplot(S3CON,aes(x = contrast,
-                 y = estimate,
-                 fill = contrast,
-                 ymin = estimate-SE,
-                 ymax = estimate+SE))+
-  geom_bar(stat = "identity",position = "dodge",color = "gray")+
-  scale_fill_viridis_d()+theme_classic()+
-  scale_x_discrete(name = "Contrast Statement",
-                   guide = guide_axis(angle = 20),
-                   labels = c(
-                     "0 v. 1" = "None v. RX",
-                     "0 v. 2" = "None v. WF",
-                     "0 v. 3" = "None v. Both",
-                     "1 v. 2" = "RX v. WF",
-                     "1 v. 3" = "RX v. Both",
-                     "2 v. 3" = "WF v. Both",
-                     "1&3 v. 0" = "RX + Both v. None",
-                     "2&3 v. 0" = "WF + Both v. None"))+
-  scale_y_continuous("Difference in Least Squares Mean",
-                     limits = c(-0.11,0.8),
-                     breaks = c(-0.1,0,0.2,0.4,0.6,0.8))+
-  theme(legend.position = "none",
-        text = element_text(size = 15))+
-  geom_errorbar(width = 0.2,colour = "orange",alpha = 0.9,size = 1.3)+
-  geom_text(aes(x = contrast,y = estimate+SE+0.01,
-                label = c("","*","","*","","*","","")),
-            size = 5,position = position_dodge(.5))
-
-p.SWF
-
-ggsave(filename = "WFSoil.png",
-       p.SWF,
-       width = 6.5,
-       height = 5,
-       dpi = 300,
-       units = "in",
-       device = 'png')
-
-#correlations of random effects not included in the model
-SC3 <- cor.test(AllFire$VegProp,AllFire$TotalTO,method = c("pearson","kendall","spearman"))
-SC33 <- cor.test(AllFire$VegBin,AllFire$SoilBin,method = c("pearson","kendall","spearman"))
-SC3
-SC33 #correlation between soil and veg!
-```
-
-## NA1 V Assumptions
-```{r,message = FALSE,warning = FALSE}
-plot(V3)
-gvlma(V3)
-
-#constant variance
-spreadLevelPlot(V3)
-
-#normality of residuals
-V3.resi <- qqPlot(V3, main = "QQ Plot")
-
-V3.res <- studres(V3)
-hist(V3.res, freq = FALSE,
-     main = "Distribution of Studentized Residuals")
-V3.xfit <- seq(min(V3.res), max(V3.res), length  =  40)
-V3.yfit <- dnorm(V3.xfit)
-lines(V3.xfit,V3.yfit)
-
-#outliers
-AllFire$WVleverage <- hatvalues(V3)
-ggplot(AllFire,aes(`New Site`,WVleverage))+
-  geom_point()+ylim(0,1)+xlab("test")
-```
-
-## NA1 S Assumptions
-```{r,message = FALSE,warning = FALSE}
-plot(S3)
-
-#constant variance
-spreadLevelPlot(S3)
-
-#normality of residuals
-S3.res <- studres(S3)
-hist(S3.res,freq = FALSE,
-     main = "Distribution of Studentized Residuals")
-S3.xfit <- seq(min(S3.res),max(S3.res),length = 40)
-S3.yfit <- dnorm(S3.xfit)
-lines(S3.xfit,S3.yfit)
-
-#outliers
-AllFire$WSleverage <- hatvalues(S3)
-ggplot(AllFire,aes(`New Site`,WSleverage))+
-  geom_point()+ylim(0,1)+xlab("test")
-```
-
-# Seedling Diversity
-## Alpha Diversity
-```{r,message = FALSE,warning = FALSE}
-PCASeeds <- AllSeeds[-(2:6)]
-#PCASeeds <- column_to_rownames(PCASeeds, var  =  "New Site")
-
-#different alpha diversity statistics
-AllSeeds$Shannon <- diversity(PCASeeds[-1],index = "shannon")
-
-hist(AllSeeds$Shannon)
-ggplot(AllSeeds,aes(x = TrtBin,y = Shannon))+geom_boxplot()
-
-#TrtBin
-#anova
-ShaTrt.a <- aov(Shannon~TrtBin,AllSeeds)
-summary.lm(ShaTrt.a)
-#Tukey
-ShaTrt.t <- HSD.test(ShaTrt.a,"TrtBin")
-print(ShaTrt.t)
-
-#Lineage
-#anova
-ShaLin.a <- aov(Shannon~Lineage,AllSeeds)
-summary.lm(ShaLin.a)
-#Tukey
-ShaLin.t <- HSD.test(ShaLin.a,"Lineage")
-print(ShaLin.t)
-
-#Site
-#anova
-ShaSite.a <- aov(Shannon~`New Site`,AllSeeds)
-summary(ShaSite.a)
-#Tukey
-#not possible as there are 0 df remaining
-
-compare_alpha <- function(AllSeeds,grouping_var) {
-  AllSeeds$Shannon <- diversity(PCASeeds[-1],index = "shannon")
-  AllSeeds$grouping <- AllSeeds[[grouping_var]]
-  anova_result <- aov(Shannon~grouping,AllSeeds)
-  tukey_result <- HSD.test(anova_result,"grouping",group = TRUE)
-  group_data <- tukey_result$groups[order(rownames(tukey_result$groups)),]
-  my_plot <- ggplot(AllSeeds,aes(x = grouping,y = Shannon))+
-    geom_text(data = data.frame(),
-              aes(x = rownames(group_data),
-                  y = max(AllSeeds$Shannon)+1,
-                  label = group_data$groups),
-              col = 'black',
-              size = 10)+
-    geom_boxplot()+
-    ggtitle("Alpha diversity")+
-    xlab(grouping_var)+
-    ylab("Alpha diversity index (Shannon)")
-  return(my_plot)
+NMDS.scree <- function(x) { #where x is the name of the data frame variable
+  plot(rep(1, 10), replicate(10, metaMDS(x, autotransform = F, k = 1)$stress), xlim = c(1, 10),ylim = c(0, 0.30), xlab = "# of Dimensions", ylab = "Stress", main = "NMDS stress plot")
+  for (i in 1:10) {
+    points(rep(i + 1,10),replicate(10, metaMDS(x, autotransform = F, k = i + 1)$stress))
+  }
 }
 
-compare_alpha(AllSeeds,"Lineage")
-compare_alpha(AllSeeds,"TrtBin")
-compare_alpha(AllSeeds,"WFBin")
-compare_alpha(AllSeeds,"VegBin")
-compare_alpha(AllSeeds,"SoilBin")
+#NMDS.scree(DistSeed) chunk excluded to save space
 ```
 
-## Beta Diversity
-### PCA
-```{r,message = FALSE,warning = FALSE}
-PCA <- rda(PCASeeds[-1],scale = FALSE)
-barplot(as.vector(PCA$CA$eig)/sum(PCA$CA$eig)) 
-sum((as.vector(PCA$CA$eig)/sum(PCA$CA$eig))[1:2]) # 82%
-
-sitePCA <- PCA$CA$u # Site scores
-speciesPCA <- PCA$CA$v # Species scores
-
-biplot(PCA,choices = c(1,2),type = c("text","points"),xlim = c(-5,10)) 
-# biplot of axis 1 vs 2
-
-biplot(PCA,choices = c(1,3),type = c("text","points")) 
-# biplot of axis 1 vs 3
+```{r, include=FALSE}
+NMDS.scree(DistSeed)
 ```
 
-### PCoA
-```{r,message = FALSE,warning = FALSE}
-DistSeed <- vegdist(PCASeeds[-1],method = "bray")
-PCOA <- pcoa(DistSeed)
+```{r}
+NMDS1 <- metaMDS(DistSeed, k = 2, trymax = 100, trace = F)
+NMDS1
+Stress <- stressplot(NMDS1)
+Stressplot <- plot(NMDS1, type = "t")
 
-barplot(PCOA$values$Relative_eig[1:10])
-sum((as.vector(PCOA$values$Relative_eig)/sum(PCOA$values$Relative_eig))[1:5]) #63%
+NMDS2 <- metaMDS(PCASeeds, k = 2, trymax = 100, trace = F)
+NMDS2
 
-biplot.pcoa(PCOA,PCASeeds[-1])
+NMDS3 <- metaMDS(PCASeeds, k = 2, trymax = 100, trace = F, autotransform = FALSE, distance="bray")
+NMDS3plot <- plot(NMDS3)
+NMDS3plotsp <- plot(NMDS3, display = "species")
 ```
 
-### NMDS
-```{r,message = FALSE,warning = FALSE}
-NMDS <- metaMDS(PCASeeds[-1],
-                k = 2,
-                trymax = 100,
-                trace = F,
-                autotransform = FALSE,
-                distance = "bray")
-
-EFvars <- c("New Site",
-            "Lineage",
-            "Latitude",
-            "Longitude",
-            "VegBin",
-            "SoilBin",
-            "YrSinceTrt",
-            "TrtBin")
-
+## Interpretation (including effects variables)
+```{r}
+#Interpretation
+EFvars <- c("New Site", "Lineage", "Latitude", "Longitude", "VegBin", "SoilBin", "YrSinceTrt")
 EFSites <- SODSite.ord[EFvars]
+head(EFSites)
 
-ef <- envfit(NMDS,EFSites,permutations = 999,na.rm = TRUE)
+ef <- envfit(NMDS3, EFSites, permutations = 999, na.rm = TRUE)
 
-data.scores <- as.data.frame(scores(NMDS))
-data.scores$Site <- rownames(data.scores)
-data.scores$Treatment <- AllSeeds$TrtBin
-data.scores$Lineage <- AllSeeds$Lineage
-data.scores$VegBin <- AllSeeds$VegBin
-data.scores$SoilBin <- AllSeeds$SoilBin
-
-species.scores <- as.data.frame(scores(NMDS, "species"))
-species.scores$Species <- rownames(species.scores)
-
-nmds.un <- data.scores[data.scores$Treatment == "0",
-                       ][chull(data.scores
-                               [data.scores$Treatment == "0", 
-                   c("NMDS1", "NMDS2")]), ]
-nmds.tr <- data.scores[data.scores$Treatment == "1",
-                       ][chull(data.scores
-                               [data.scores$Treatment == "1", 
-                   c("NMDS1", "NMDS2")]), ]
-hull.data <- rbind(nmds.un, nmds.tr)
-
-p.nmds <- ggplot()+ 
-  geom_polygon(data = hull.data,
-               aes(x = NMDS1, y = NMDS2,
-                   fill = Treatment,
-                   group = Treatment),
-               alpha = 0.3)+
-  geom_point(data = data.scores,
-             aes(x = NMDS1, y=NMDS2,
-                 shape = as.factor(Lineage),
-                 color = Treatment),
-             size=4)+
-  geom_text(data = species.scores,
-            aes(x = NMDS1, y = NMDS2,
-                label = Species),
-            alpha = 0.5)+
-  coord_equal()+
-  labs(shape = "Lineage")+
-  scale_fill_viridis(discrete = TRUE, labels = c("0" = "Untreated","1" = "Treated"))+
-  scale_color_viridis(discrete = TRUE, begin = 0.3, end = 0.8, labels = c("0" = "Untreated","1" = "Treated"))+
-  theme_classic()+
-  theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_text(size=18),
-        axis.title.y = element_text(size=18),
-        panel.background = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        plot.background = element_blank())
-p.nmds
-
-ggsave(filename = "NMDS.png",
-       p.nmds,
-       width = 6.5,
-       height = 5,
-       dpi = 300,
-       units = "in",
-       device = 'png')
+efplot <- plot(NMDS3, type = "t", display = "species")
+efplot2 <- plot(ef, p.max = 0.05)
+efplot2
 ```
 
-### PERMANOVA
-```{r,message = FALSE,warning = FALSE}
-permutations <- 10000
-set.seed(47)
-
-PER.div <- adonis2(DistSeed~TrtBin*Lineage*YrSinceTrt,
-                   data = EFSites, 
-                   permutations = permutations,
-                   method = "bray")
-PER.div
-
-PER2.div <- adonis2(PCASeeds[-1]~TrtBin*Lineage*YrSinceTrt,
-                   data = EFSites, 
-                   permutations = permutations,
-                   method = "bray")
-PER2.div
-
-# overall tests
-PER.div2 <- adonis2(DistSeed~TrtBin*Lineage*YrSinceTrt,
-                    data = EFSites,
-                    permutations = permutations,
-                    method = "bray",by = NULL)
-PER.div2
-
-PER2.div2 <- adonis2(PCASeeds[-1]~TrtBin*Lineage*YrSinceTrt,
-                    data = EFSites,
-                    permutations = permutations,
-                    method = "bray",by = NULL)
-PER2.div2
-```
-
-#### Homoscedasticity test by Treatment
+## Interpretation by treatment
 ```{r}
-T.disp <- betadisper(DistSeed, group = EFSites$TrtBin)
-permutest(T.disp)
-plot(T.disp, hull = FALSE, ellipse = TRUE) #sd ellipse
+group = c(rep("Untreated", 56), rep("Treated", 43))
+colors = c(rep("red", 56), rep("blue", 43))
 
-T.cent <- data.frame(grps = rownames(T.disp$centroids),
-                        data.frame(T.disp$centroids))
-T.vec <- data.frame(group = T.disp$group,
-                      data.frame(T.disp$vectors))
-T.vec$Lineage <- AllSeeds$Lineage
+ordiplot(NMDS3, type = "n")
+for(i in unique(group)) {
+  ordihull(NMDS3$point[grep(i, group),], draw="polygon",
+  groups = group[group == i],col = colors[grep(i,group)],label=F) }
 
-seg.un <- T.vec[T.vec$group == "0",]
-seg.tr <- T.vec[T.vec$group == "1",]
-seg.u <- cbind(seg.un[,1:3],
-                  T.cent[rep(1:nrow(T.cent), 
-                  as.data.frame(table(seg.un$group))$Freq),2:3])
-seg.t <- cbind(seg.tr[,1:3],
-                  T.cent[rep(1:nrow(T.cent), 
-                  as.data.frame(table(seg.tr$group))$Freq),2:3])
-names(seg.u)<-c("group","v.PCoA1","v.PCoA2","PCoA1","PCoA2")
-names(seg.t)<-c("group","v.PCoA1","v.PCoA2","PCoA1","PCoA2")
-seg.data <- rbind(seg.u, seg.t)
-
-un.hull<-seg.data[seg.data$group=="0",1:3][chull(seg.data[seg.data$group=="0",2:3]),]
-tr.hull<-seg.data[seg.data$group=="1",1:3][chull(seg.data[seg.data$group=="1",2:3]),]
-trt.hull<-rbind(un.hull,tr.hull)
-
-panel.un <- ggplot()+ 
-  geom_polygon(data=trt.hull[trt.hull=="0",],
-               aes(x=v.PCoA1,y=v.PCoA2),
-               colour="black",alpha=0,linetype="dashed")+
-  geom_segment(data=seg.data[seg.data$group == "0",],
-               aes(x=v.PCoA1,xend=PCoA1,y=v.PCoA2,yend=PCoA2),
-               alpha=0.30)+ 
-  geom_point(data=T.cent[1,1:3],
-             aes(x=PCoA1,y=PCoA2),
-             size=4,colour="red",shape=16)+
-  geom_point(data=seg.data[seg.data$group == "0",],
-             aes(x=v.PCoA1,y=v.PCoA2),size=2,shape=16)+
-  labs(title="A.",x="",y="")+
-  coord_cartesian(xlim = c(-0.5,0.5), ylim = c(-0.5,0.5))+
-  theme_bw()+ 
-  theme(legend.position="none")
-panel.tr <- ggplot()+ 
-  geom_polygon(data=trt.hull[trt.hull=="1",],
-               aes(x=v.PCoA1,y=v.PCoA2),
-               colour="black",alpha=0,linetype="dashed")+
-  geom_segment(data=seg.data[seg.data$group == "1",],
-               aes(x=v.PCoA1,xend=PCoA1,y=v.PCoA2,yend=PCoA2),
-               alpha=0.30)+ 
-  geom_point(data=T.cent[2,1:3],
-             aes(x=PCoA1,y=PCoA2),
-             size=4,colour="red",shape=17)+ 
-  geom_point(data=seg.data[seg.data$group == "1",],
-             aes(x=v.PCoA1,y=v.PCoA2),size=2,shape=17)+
-  labs(title="B.",x="",y="")+
-  coord_cartesian(xlim = c(-0.5,0.5), ylim = c(-0.5,0.5))+
-  theme_bw()+ 
-  theme(legend.position="none")
-panel.all <- ggplot()+ 
-  geom_polygon(data=trt.hull,
-               aes(x=v.PCoA1,y=v.PCoA2),
-               colour="black",alpha=0,linetype="dashed")+
-  geom_segment(data=seg.data,
-               aes(x=v.PCoA1,xend=PCoA1,y=v.PCoA2,yend=PCoA2),
-               alpha=0.30)+ 
-  geom_point(data=T.cent[,1:3],
-             aes(x=PCoA1,y=PCoA2,shape=grps),
-             size=4,colour="red")+ 
-  geom_point(data=seg.data,
-             aes(x=v.PCoA1,y=v.PCoA2,shape=group),size=2)+
-  labs(title="C.",x="",y="")+
-  coord_cartesian(xlim = c(-0.5,0.5), ylim = c(-0.5,0.5))+
-  theme_bw()+ 
-  theme(legend.position="none")
-
-p.perT <- ggarrange(panel.un,panel.tr,panel.all,ncol = 3,nrow = 1)
-p.perT
-
-ggsave(filename = "Perm_Trt.png",
-       p.perT,
-       width = 6.5,
-       height = 2,
-       dpi = 300,
-       units = "in",
-       device = 'png')
+orditorp(NMDS3, display = "species", col = "red", air = 0.01)
+#orditorp(NMDS3, display = "sites", col = c(rep("red",12),
+#  rep("blue", 12)), air = 0.01, cex = 1.25)
 ```
 
-#### By Lineage
 ```{r}
-L.disp <- betadisper(DistSeed, group = EFSites$Lineage)
-permutest(L.disp)
-plot(L.disp, hull = FALSE, ellipse = TRUE) #sd ellipse
-
-L.cent <- data.frame(grps = rownames(L.disp$centroids),
-                        data.frame(L.disp$centroids))
-L.vec <- data.frame(group = L.disp$group,
-                      data.frame(L.disp$vectors))
-L.vec$Lineage <- AllSeeds$Lineage
-
-seg.eu <- L.vec[L.vec$group == "EU1",]
-seg.na <- L.vec[L.vec$group == "NA1",]
-seg.eu <- cbind(seg.eu[,1:3],
-                  L.cent[rep(1:nrow(L.cent), 
-                  as.data.frame(table(seg.eu$group))$Freq),2:3])
-seg.na <- cbind(seg.na[,1:3],
-                  L.cent[rep(1:nrow(L.cent), 
-                  as.data.frame(table(seg.na$group))$Freq),2:3])
-names(seg.eu)<-c("group","v.PCoA1","v.PCoA2","PCoA1","PCoA2")
-names(seg.na)<-c("group","v.PCoA1","v.PCoA2","PCoA1","PCoA2")
-lin.data <- rbind(seg.eu, seg.na)
-
-eu.hull<-lin.data[lin.data$group=="EU1",1:3][chull(lin.data[lin.data$group=="EU1",2:3]),]
-na.hull<-lin.data[lin.data$group=="NA1",1:3][chull(lin.data[lin.data$group=="NA1",2:3]),]
-lin.hull<-rbind(eu.hull,na.hull)
-
-panel.eu <- ggplot()+ 
-  geom_polygon(data=lin.hull[lin.hull=="EU1",],
-               aes(x=v.PCoA1,y=v.PCoA2),
-               colour="black",alpha=0,linetype="dashed")+
-  geom_segment(data=lin.data[lin.data$group == "EU1",],
-               aes(x=v.PCoA1,xend=PCoA1,y=v.PCoA2,yend=PCoA2),
-               alpha=0.30)+ 
-  geom_point(data=L.cent[1,1:3],
-             aes(x=PCoA1,y=PCoA2),
-             size=4,colour="red",shape=16)+
-  geom_point(data=lin.data[lin.data$group == "EU1",],
-             aes(x=v.PCoA1,y=v.PCoA2),size=2,shape=16)+
-  labs(title="A.",x="",y="")+
-  coord_cartesian(xlim = c(-0.5,0.5), ylim = c(-0.5,0.5))+
-  theme_bw()+ 
-  theme(legend.position="none")
-panel.na <- ggplot()+ 
-  geom_polygon(data=lin.hull[lin.hull=="NA1",],
-               aes(x=v.PCoA1,y=v.PCoA2),
-               colour="black",alpha=0,linetype="dashed")+
-  geom_segment(data=lin.data[lin.data$group == "NA1",],
-               aes(x=v.PCoA1,xend=PCoA1,y=v.PCoA2,yend=PCoA2),
-               alpha=0.30)+ 
-  geom_point(data=L.cent[2,1:3],
-             aes(x=PCoA1,y=PCoA2),
-             size=4,colour="red",shape=17)+ 
-  geom_point(data=lin.data[lin.data$group == "NA1",],
-             aes(x=v.PCoA1,y=v.PCoA2),size=2,shape=17)+
-  labs(title="B.",x="",y="")+
-  coord_cartesian(xlim = c(-0.5,0.5), ylim = c(-0.5,0.5))+
-  theme_bw()+ 
-  theme(legend.position="none")
-panel.L <- ggplot()+ 
-  geom_polygon(data=lin.hull,
-               aes(x=v.PCoA1,y=v.PCoA2),
-               colour="black",alpha=0,linetype="dashed")+
-  geom_segment(data=lin.data,
-               aes(x=v.PCoA1,xend=PCoA1,y=v.PCoA2,yend=PCoA2),
-               alpha=0.30)+ 
-  geom_point(data=L.cent[,1:3],
-             aes(x=PCoA1,y=PCoA2,shape=grps),
-             size=4,colour="red")+ 
-  geom_point(data=lin.data,
-             aes(x=v.PCoA1,y=v.PCoA2,shape=group),size=2)+
-  labs(title="C.",x="",y="")+
-  coord_cartesian(xlim = c(-0.5,0.5), ylim = c(-0.5,0.5))+
-  theme_bw()+ 
-  theme(legend.position="none")
-
-p.perL <- ggarrange(panel.eu,panel.na,panel.L,ncol = 3,nrow = 1)
-p.perL
-
-ggsave(filename = "Perm_Lin.png",
-       p.perL,
-       width = 6.5,
-       height = 2,
-       dpi = 300,
-       units = "in",
-       device = 'png')
+#MRPP or other analysis coming soon!
 ```
