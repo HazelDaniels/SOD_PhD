@@ -13,4 +13,4 @@ A study of management effectiveness on SOD-infected sites. This chapter focuses 
 Epidemiology/spatial analysis of the first four years of SOD infection for both NA1 and EU1 lineages. Emphasis on the first four years allows comparison of NA1 and EU1 lineages as they move through Curry County, OR.
 
 ## Ch3_Radiata
-Field and growth chamber trials of <i>Pinus radiata</i> as potential SOD host. Lesion development in cut bolts will be observed, and symptoms and sporulation will be observed on seedlings.
+Field and growth chamber trials of <i>Pinus radiata</i> as potential SOD host. Lesion development and reisolation of the pathogen will be analyzed in cut bolts and seedlings, sporulation will be additionally be analyzed from seedlings inoculations.
